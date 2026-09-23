@@ -88,8 +88,7 @@ function PAYPAL_listIPNlog()
     $query_arr = array(
         'table'          => 'paypal_ipnlog',
         'sql'            => $sql,
-        'query_fields'   => array('id', 'ip_addr', 'time', 'verified', 'txn_id', 'ipn_data'),
-        'default_filter' => COM_getPermSQL ('AND', 0, 3)
+        'query_fields'   => array('id', 'ip_addr', 'time', 'verified', 'txn_id', 'ipn_data')
     );
 
     $retval .= ADMIN_list('paypal', 'plugin_getListField_paypal_IPNlog',
@@ -114,11 +113,18 @@ function plugin_getListField_paypal_IPNlog($fieldname, $fieldvalue, $A, $icon_ar
 	
 	//$A['ipn_data'] = base64_decode($A['ipn_data']);
 	
-	$out = preg_replace('!s:(\d+):"(.*?)";!se', "'s:'.strlen('$2').':\"$2\";'", $A['ipn_data'] ); 
-	
-	if (!$ipn = unserialize($out)) {
-	    $ipn = repairSerializedArray($A['ipn_data']);
-	}
+    $out = preg_replace_callback(
+        '!s:(\\d+):"(.*?)";!s',
+        function ($matches) {
+            return 's:' . strlen($matches[2]) . ':"' . $matches[2] . '";';
+        },
+        isset($A['ipn_data']) ? $A['ipn_data'] : ''
+    );
+
+    $ipn = @unserialize($out);
+    if (!is_array($ipn)) {
+        $ipn = repairSerializedArray(isset($A['ipn_data']) ? $A['ipn_data'] : '');
+    }
 	
 	if (!is_array($ipn)) {
         $ipn = array();
@@ -140,11 +146,19 @@ function plugin_getListField_paypal_IPNlog($fieldname, $fieldvalue, $A, $icon_ar
 		case "txn_id":
             $retval = '<a href="' . $_CONF['site_url'] . '/admin/plugins/paypal/ipnlog.php?view=ipnlog&op=single&txn_id=' . $A['txn_id'] . '">' . $A['txn_id'] . '</a>';
             break;
-		case "payment_status":
-            $retval = $ipn['payment_status'];
+        case "payment_status":
+            $retval = isset($ipn['payment_status']) ? $ipn['payment_status'] : '';
             break;
-		case "custom":
-            ($ipn['custom'] > 1) ? $retval = '<a href="' . $_CONF['site_url'] . '/users.php?mode=profile&uid=' . $ipn['custom'] . '">' . $ipn['last_name'] . '</a>' . ' (' . $ipn['custom'] . ')' : $retval = $ipn['last_name'] ;
+
+        case "custom":
+            $custom = isset($ipn['custom']) ? (int) $ipn['custom'] : 0;
+            $lastName = isset($ipn['last_name']) ? $ipn['last_name'] : '';
+            if ($custom > 1) {
+                $retval = '<a href="' . $_CONF['site_url'] . '/users.php?mode=profile&uid='
+                    . $custom . '">' . $lastName . '</a> (' . $custom . ')';
+            } else {
+                $retval = $lastName;
+            }
             break;
 
         default:
@@ -170,11 +184,17 @@ function PAYPAL_ipnlog_single($id, $txn_id) {
 	
 	$input_ipn = 0;
 
+    $csrfTokenName = CSRF_TOKEN;
+    $csrfTokenValue = SEC_createToken();
+
     $js = 'jQuery(document).ready(function() {
-	    jQuery(".paypal_handle_purchase").live("click", function() {
-			var action = jQuery(this).attr("class");
+	    jQuery(".paypal_handle_purchase").on("click", function() {
+			var action = "paypal_handle_purchase";
 			var ipn = jQuery(this).attr("ipn");
-			var string = \'&action=\' + action + \'&ipn=\' + ipn;
+			var string = \'action=\' + encodeURIComponent(action)
+                + \'&ipn=\' + encodeURIComponent(ipn)
+                + \'&' . rawurlencode($csrfTokenName) . '=\'
+                + encodeURIComponent(\'' . rawurlencode($csrfTokenValue) . '\');
 			if (confirm(\'' . $LANG_PAYPAL_1['confirm_handle_purchase'] . '\')) {	
 				//jQuery(this).parent().parent().fadeOut("slow");
 				jQuery.ajax({
@@ -199,16 +219,26 @@ function PAYPAL_ipnlog_single($id, $txn_id) {
     if ($id > 0) {
         $sql = "SELECT * FROM {$_TABLES['paypal_ipnlog']} WHERE id = $id";
     } else {
-        $sql = "SELECT * FROM {$_TABLES['paypal_ipnlog']} WHERE txn_id = '$txn_id'";
+        $safeTxnId = DB_escapeString((string) $txn_id);
+        $sql = "SELECT * FROM {$_TABLES['paypal_ipnlog']} WHERE txn_id = '{$safeTxnId}'";
     }
     $res = DB_query($sql);
     $A = DB_fetchArray($res);
+
+    if (!is_array($A) || empty($A)) {
+        return COM_showMessageText($LANG_PAYPAL_1['ipnlog_empty'], $LANG_PAYPAL_1['IPN_logs']);
+    }
+
+    $display = '';
+    $errors = '';
+    $errmsg = '';
+    $input_ipn = 0;
 
 	// Start Display
     $display .= COM_startBlock($LANG_PAYPAL_1['ipn_history'] . " (#{$A['id']})");
 
     // Create ipnlog template
-    $ipnlog = new Template($_CONF['path'] . 'plugins/paypal/templates');
+    $ipnlog = COM_newTemplate($_CONF['path'] . 'plugins/paypal/templates');
     $ipnlog->set_file(array('ipnlog' => 'ipnlog_detail.thtml'));
     $ipnlog->set_var('site_url', $_CONF['site_url']);
     $ipnlog->set_var('IPN_log', $LANG_PAYPAL_1['IPN_log']);
@@ -219,33 +249,46 @@ function PAYPAL_ipnlog_single($id, $txn_id) {
     $ipnlog->set_var('gross_payment', $LANG_PAYPAL_1['gross_payment']);
     $ipnlog->set_var('payment_status_label', $LANG_PAYPAL_1['payment_status']);
 	$ipnlog->set_var('ipn_data', $LANG_PAYPAL_1['ipn_data']);
-	$ipnlog->set_var('mc_gross', $A['mc_gross']);
-	$ipnlog->set_var('mc_currency', $_PAY_CONF['currency']);
+    $ipnlog->set_var('mc_currency', $_PAY_CONF['currency']);
 	$ipnlog->set_var('txn_id', $A['txn_id']);
 	
 	// Allow all serialized data to be available to the template
-	$ipn ='';
-	if ($A['ipn_data'] != '') {
+	$ipn = array('payment_status' => '');
+	if (!empty($A['ipn_data'])) {
 
 		//Diagnotic
 		PAYPAL_check_serialization( $A['ipn_data'], $errmsg );
-		//Serialize fixer
-		$out = preg_replace('!s:(\d+):"(.*?)";!se', "'s:'.strlen('$2').':\"$2\";'", $A['ipn_data'] ); 
+        // Serialized-data length fixer compatible with PHP 7+.
+        $out = preg_replace_callback(
+            '!s:(\\d+):"(.*?)";!s',
+            function ($matches) {
+                return 's:' . strlen($matches[2]) . ':"' . $matches[2] . '";';
+            },
+            $A['ipn_data']
+        );
 		
 		PAYPAL_check_serialization( $out, $errmsg );
-        if (!$ipn = unserialize($out)) {
-		    $ipn = repairSerializedArray($A['ipn_data']) ;
+        $decodedIpn = @unserialize($out);
+        if (!is_array($decodedIpn)) {
+		    $ipn = repairSerializedArray($A['ipn_data']);
 			$errmsg = 'IPN ' . $A['txn_id'] . ' is not complete';
 			$input_ipn = 1;
-		}
-		
-		if (!is_array($ipn)) {
-            $ipn = array();
+		} else {
+            $ipn = $decodedIpn;
+        }
+
+        if (!is_array($ipn)) {
+            $ipn = array('payment_status' => '');
+        }
+        if (!isset($ipn['payment_status'])) {
+            $ipn['payment_status'] = '';
         }
         foreach ($ipn as $name => $value) {
             $ipnlog->set_var($name, $value);
         }
 	}
+
+    $ipnlog->set_var('mc_gross', isset($ipn['mc_gross']) ? $ipn['mc_gross'] : '');
 
     // Display the specified ipnlog row
     $ipnlog->set_var('id', $A['id']);
@@ -256,7 +299,7 @@ function PAYPAL_ipnlog_single($id, $txn_id) {
     } else {
         $txt = $LANG_PAYPAL_1['false'] . ' | Payment status: ' . strtolower($ipn['payment_status']);
 		//Update IPN and handle purchase
-		if (strtolower($ipn['payment_status']) == ('complete' || 'completed')) $txt .= ' >> <a class="paypal_handle_purchase" ipn="' . $A['txn_id'] . '" href="">' . $LANG_PAYPAL_1['handle_purchase'] . '</a>';
+		if (in_array(strtolower($ipn['payment_status']), array('complete', 'completed'), true)) $txt .= ' >> <a class="paypal_handle_purchase" ipn="' . $A['txn_id'] . '" href="">' . $LANG_PAYPAL_1['handle_purchase'] . '</a>';
 		$ipnlog->set_var('verified', $txt );
     }
     
@@ -279,11 +322,14 @@ function PAYPAL_ipnlog_single($id, $txn_id) {
 		if ( $input_ipn == 1 ) {
 		    //Display textarea for new IPN
 			$js2 = 'jQuery(".paypal_ipn_replace").delegate(".paypal_new_ipn","click",function() {
-							var action = jQuery(this).attr("class");
+							var action = "paypal_new_ipn";
 							var id = jQuery(this).attr("id");
 							var content = jQuery("textarea#ipn_textarea").val();
-							content = encodeURIComponent(content);
-							var string = \'&action=\' + action + \'&ipn=\' + id + \'&content=\' + content;
+							var string = \'action=\' + encodeURIComponent(action)
+                                + \'&ipn=\' + encodeURIComponent(id)
+                                + \'&content=\' + encodeURIComponent(content)
+                                + \'&' . rawurlencode($csrfTokenName) . '=\'
+                                + encodeURIComponent(\'' . rawurlencode($csrfTokenValue) . '\');
 											
 							jQuery.ajax({
 								type: "POST",
@@ -526,8 +572,7 @@ function repairSerializedArray_R(&$broken)
 
 //Main
 
-$display = COM_siteHeader('none');
-$display .= paypal_admin_menu();
+$display = paypal_admin_menu();
 
 // base output on selected opeation (op)
 switch ($_REQUEST['op']) {
@@ -543,7 +588,6 @@ switch ($_REQUEST['op']) {
         break;
 }
 
-$display .= COM_siteFooter();
-echo $display;
+echo PAYPAL_createHTMLDocument($display, $LANG_PAYPAL_1['IPN_logs']);
 
 ?>

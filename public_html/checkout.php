@@ -41,12 +41,10 @@ if (!in_array('paypal', $_PLUGINS)) {
 /* Ensure sufficient privs to read this page */
 paypal_access_check('paypal.viewer');
 
-//Main
+// Main
+$display = '';
 
-$display = PAYPAL_siteHeader($_PAY_CONF['seo_shop_title']);
-
-
-if (SEC_hasRights('paypal.user', 'paypal.admin')) {
+if (SEC_hasRights('paypal.user,paypal.admin', 'OR')) {
     $display .= paypal_user_menu();
 } else {
     $display .= paypal_viewer_menu();
@@ -56,8 +54,6 @@ if (SEC_hasRights('paypal.user', 'paypal.admin')) {
 $display .= '<div id="cart">' . PAYPAL_displayCart() .'</div>';
 
 
-$display .= PAYPAL_siteFooter();
-
-COM_output($display);
+COM_output(PAYPAL_createHTMLDocument($display, $_PAY_CONF['seo_shop_title']));
 
 ?>

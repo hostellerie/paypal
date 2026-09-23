@@ -44,6 +44,7 @@ paypal_access_check('paypal.user');
 $vars = array('msg' => 'text',
               'mode' => 'alpha',
 			  'uid'  => 'number',
+              'user_id' => 'number',
               'name' => 'text',
               'street1' => 'text',
 			  'street2' => 'text',
@@ -79,6 +80,12 @@ switch ($_REQUEST['mode']) {
 			}
             $res = DB_query($sql);
             $A = DB_fetchArray($res);
+            if (!is_array($A)) {
+                $A = array();
+            }
+            if (!isset($A['user_id'])) {
+                $A['user_id'] = '';
+            }
 			if ($A['user_id'] == '' && SEC_hasRights('paypal.admin')) {
 			    $A['user_id'] = $_REQUEST['uid'];
 			}
@@ -172,6 +179,12 @@ switch ($_REQUEST['mode']) {
             $sql = "SELECT * FROM {$_TABLES['paypal_users']} WHERE user_id = {$_USER['uid']}";
             $res = DB_query($sql);
             $A = DB_fetchArray($res);
+            if (!is_array($A)) {
+                $A = array();
+            }
+            if (!isset($A['user_id'])) {
+                $A['user_id'] = '';
+            }
 			if ($A['user_id'] == '' && SEC_hasRights('paypal.admin')) {
 			    $A['user_id'] = $_REQUEST['uid'];
 			}
@@ -185,9 +198,6 @@ switch ($_REQUEST['mode']) {
         }
 	}
 
-$display = COM_siteHeader() . $display . COM_siteFooter();
-
-
-COM_output($display);
+COM_output(PAYPAL_createHTMLDocument($display));
 
 ?>

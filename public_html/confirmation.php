@@ -36,10 +36,7 @@
  */
 require_once '../lib-common.php';
 
-// START SESSION
-session_start();
-// INITIALIZE JCART AFTER SESSION START
-$cart =& $_SESSION['jcart']; 
+$cart = PAYPAL_getCart();
 
 // take user back to the homepage if the plugin is not active
 if (!in_array('paypal', $_PLUGINS) || COM_isAnonUser() || ($cart->itemcount) < 1) {
@@ -51,12 +48,15 @@ if (!in_array('paypal', $_PLUGINS) || COM_isAnonUser() || ($cart->itemcount) < 1
 paypal_access_check('paypal.user');
 
 $vars = array('msg' => 'text',
+              'mode' => 'alpha',
               'shipping' => 'text'
               );
 paypal_filterVars($vars, $_REQUEST);
 
 /* valid price, access and active product only */
 $items = array();
+$namesfromcart = array();
+$item_price = array();
 $i = 1;
 $quantities = array();
 $valid_prices = true;
@@ -68,7 +68,14 @@ foreach ($cart->get_contents() as $item) {
 	$quantities[$i] = $item['qty'];
 	$item_price[$i]	= $item['price'];
 	$A = DB_fetchArray(DB_query("SELECT * FROM {$_TABLES['paypal_products']} WHERE id = '{$item_id}' LIMIT 1"));
-	if ($item_price[$i] <> PAYPAL_productPrice($A) || !SEC_hasAccess2($A) || $A['active'] != '1') $valid_prices = false;
+    if (!is_array($A)
+        || $item_price[$i] <> PAYPAL_productPrice($A)
+        || !SEC_hasAccess2($A)
+        || !isset($A['active'])
+        || $A['active'] != '1'
+    ) {
+        $valid_prices = false;
+    }
 	$i++;
 }
 if ($valid_prices !== true) {
@@ -79,10 +86,13 @@ if ($valid_prices !== true) {
 
 //Main
 
+$display = '';
+$data = array();
+
 // EMPTY THE CART
 $cart->empty_cart();
+PAYPAL_saveCart($cart);
 
-$display .= PAYPAL_siteHeader();
 $display .= paypal_user_menu();
 
 switch ($_REQUEST['mode']) {
@@ -92,18 +102,16 @@ switch ($_REQUEST['mode']) {
         //Display cart
         $display .= '<div id="cart">
 		             <div id="jcart">
-                        <ul id="ULcheckoutProcedure">
-			                <li>' . $LANG_PAYPAL_1['checkout_step_1'] . '</li>
-							<li>' . $LANG_PAYPAL_1['checkout_step_2'] . '</li>
-							<li id="LIactiveStep">' . $LANG_PAYPAL_1['checkout_step_3'] . '</li>
-						</ul>
+                        <ol id="ULcheckoutProcedure" class="paypal-checkout-steps">
+                            <li class="paypal-checkout-step is-complete">' . $LANG_PAYPAL_1['checkout_step_1'] . '</li>
+                            <li class="paypal-checkout-step is-complete">' . $LANG_PAYPAL_1['checkout_step_2'] . '</li>
+                            <li id="LIactiveStep" class="paypal-checkout-step is-active" aria-current="step">' . $LANG_PAYPAL_1['checkout_step_3'] . '</li>
+                        </ol>
 					</div></div>';
 
 		$display .= PAYPAL_handlePurchase($items, $quantities, $data, $namesfromcart, $item_price);
-		
-        $display .= PAYPAL_siteFooter();
 }
 
-COM_output($display);
+COM_output(PAYPAL_createHTMLDocument($display));
 
 ?>

@@ -1,10 +1,10 @@
 {# begin {templatelocation} #}
 
-<!-- cart_end.thtml -->
-
-        <tr>
-		  <td id="jcart-footer" colspan="4">
-		  <p><span id="jcart-subtotal">{subtotal}</span></p>
-		  {checkout}
+        <tr class="paypal-cart-subtotal-row">
+          <td id="jcart-footer" colspan="4">
+            <div class="paypal-cart-subtotal">
+              <span id="jcart-subtotal">{subtotal}</span>
+              {checkout}
+            </div>
 
 {# end {templatelocation} #}

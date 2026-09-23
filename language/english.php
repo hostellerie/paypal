@@ -116,6 +116,42 @@ $LANG_PAYPAL_1 = array(
 	'homepage_label'          => 'Homepage',
 	'product_list_label'      => 'Product List',
 	'view_cart'               => 'View cart',
+    'random_product'          => 'Random product',
+    'configuration'           => 'Configuration',
+    'help'                    => 'Help',
+    'create_recurring_payment'=> 'create a new recurring payment',
+    'manage_attribute_types'  => 'manage attribute types',
+    'help_intro'              => 'Use this page as a quick guide to configure and operate the PayPal shop.',
+    'help_quick_actions'      => 'Products and subscriptions',
+    'help_catalog_setup'      => 'Catalog and shipping setup',
+    'help_monitoring'         => 'Sales and monitoring',
+    'help_blocks'             => 'Dynamic blocks',
+    'help_blocks_intro'       => 'PayPal can expose dynamic Geeklog blocks directly from the plugin configuration.',
+    'help_workflow'           => 'Recommended setup workflow',
+    'help_troubleshooting'    => 'Troubleshooting',
+    'help_troubleshooting_text' => 'If a payment or order does not look correct, check the IPN logs first, then the purchase history and the plugin configuration. Sandbox should be used before enabling live payments.',
+    'help_products'           => 'Review and manage all products in the catalog.',
+    'help_create_product'     => 'Create a standard product, downloadable or physical.',
+    'help_subscriptions'      => 'Review memberships and subscription purchases.',
+    'help_create_membership'  => 'Create a membership product that can add buyers to a Geeklog group.',
+    'help_recurring'          => 'Review active and historical recurring payment profiles.',
+    'help_create_recurring'   => 'Create a product using recurring PayPal billing.',
+    'help_categories'         => 'Organize products into categories used in the storefront.',
+    'help_attributes'         => 'Create product options such as size, color or paid extras.',
+    'help_attribute_types'    => 'Group related attributes and control how they are presented.',
+    'help_shipping'           => 'Configure shipping methods, destinations and price ranges.',
+    'help_shipper_services'   => 'Create the available carriers or shipping services.',
+    'help_shipping_locations' => 'Define the destinations used by shipping rates.',
+    'help_purchase_history'   => 'Review orders, transaction identifiers and purchase status.',
+    'help_downloads'          => 'Review downloadable-product activity.',
+    'help_ipn'                => 'Inspect PayPal IPN notifications and diagnose payment processing.',
+    'help_cart_block'         => 'Cart block: reflects the current visitor cart and refreshes through AJAX after cart changes.',
+    'help_random_block'       => 'Random product block: selects an accessible active product marked for block display on each page render.',
+    'help_step_config'        => 'Configure PayPal credentials, currency, payment methods and shop details.',
+    'help_step_catalog'       => 'Create categories, attributes and products or subscriptions.',
+    'help_step_shipping'      => 'If physical products are sold, configure destinations, services and shipping rates.',
+    'help_step_test'          => 'Test the complete purchase flow in PayPal Sandbox before switching to live mode.',
+    'help_step_monitor'       => 'After launch, use Purchases and IPN logs to monitor transactions and investigate failures.',
 	'store'                   => 'Go to Store',
 	'new_product'             => 'New Product',
 	'view_IPN_log'            => 'View IPN log',
@@ -133,15 +169,13 @@ $LANG_PAYPAL_1 = array(
 	'total'                   => 'Total',
 	'ipn_data'                => 'IPN Data',
 	'info_picture'            => 'Enlarge image',
-	'online'                  => 'online',
-	'plugin_conf'             => 'The paypal plugin configuration is also',
-	'plugin_doc'              => 'Install, upgrade and usage documentation for paypal plugin are',
 	'products_list'           => 'Products list',
 	'create_product'          => 'create a new product',
     'you_can'                 => 'You can ',
 	'email'                   => 'Email',
 	'existing_categories'     => 'Existing categories are',
 	'details'                 => 'Read more',
+	'title_display'           => 'Display details',
 	'payment_method'          => 'Choose your method of payment', //Todo implement other gateway then this will be "Choose your method of payment"
 	'checkout_step_1'         => 'Step 1.<br>Review your selection',
     'checkout_step_2' 	  	  => 'Step 2.<br>Provide your information',
@@ -194,7 +228,7 @@ $LANG_PAYPAL_1 = array(
 	'create_subscription'     => 'create a new subscription or accession',
 	'subscriptions_empty'     => 'There is no subscription.',
 	'add_to_group'            => 'Group',
-	'create_new_subscription' => 'Creating a new subscription - Paypal Pro feature',
+	'create_new_subscription' => 'Creating a new subscription',
 	'edit_subscription'       => 'Edit subscription',
 	'subscription_informations' => 'Subscription informations',
 	'notification'            => 'Notification',
@@ -234,7 +268,7 @@ $LANG_PAYPAL_1 = array(
 	'edit_user_details'       => 'Edit user details',
 	'editing_user_details'    => 'Editing user details',
 	'membership_informations' => 'Membership informations',
-    'install_jquery'          => 'To allow your site users to display the products images in a lightbox, you need to install the jQuery plugin for Geeklog.',
+    'add_attributes'          => 'Save your product first, then you can add attributes to this product. You need to create at least one attribute before you can add it.',
     'see_members_list'        => 'See public member list',
     'details_save_success'    => 'Your details were saved',
     'details_save_fail'       => 'Sorry I can\'t save your details. Can you try to submit it one more time.',
@@ -262,7 +296,7 @@ $LANG_PAYPAL_1 = array(
 	'review_details'          => 'Please review your details',
 	'order_received'          => 'Your order is pending',
 	'confirm_by_email'        => 'We sent you an email to confirme the details of your order.',
-	'autotag_desc_paypal'     => '<p>[paypal: id alternate title] - Displays a link to a product using the product name as the title. An alternate title may be specified but is not required.</p>',
+	'autotag_desc_paypal'     => '<p>[paypal: id alternate title] - Displays a link to a product using the product name as the title. [paypal:count] displays the current number of items in the visitor shopping cart.</p>',
 	'autotag_desc_paypal_product' => '<p>[paypal_product:  id] - Displays a product image, product name, small description, "buy now" and "Add to cart" buttons.</p>',
 	'validate_order'          => 'Validate this order',
 	'category'                => 'Category',
@@ -287,6 +321,11 @@ $LANG_PAYPAL_1 = array(
 	'replace_ipn'             => 'To replace IPN, go to your paypal account https://www.paypal.com/cgi-bin/webscr?cmd=_display-ipns-history and paste the IPN in the textearea bellow:',
 	'ipn_replaced'            => 'IPN successfully replaced. Please reload the page to display changes.',
 	'period_stat'             => 'Period:',
+    'sales_period'            => 'Period',
+    'sales_month'             => 'month',
+    'sales_months'            => 'months',
+    'sales_years'             => 'years',
+    'apply'                   => 'Apply',
 	'month_stat'              => 'Month:',
 	'year_stat'               => 'Year:',
 	'evolution_sales_stat'    => 'Evolution of sales',
@@ -365,6 +404,7 @@ $LANG_PAYPAL_ADMIN = array(
 	'prod_type'               => 'Product type',
 	'prod_types'              => array(0 => 'Physical', 1 => 'Downloadable', 2 => 'Virtual/Service'),
 	'weight'                  => 'Weight (in kilograms)',
+	'per_item'                => 'Per item',
 	'shipping_type'           => 'Shipping type',
 	'shipping_amt'            => 'Shipping amount',
 	'shipping_options'        => array(0 => 'No shipping - Free shipping', 1 => 'Apply shipping costs'),
@@ -391,6 +431,7 @@ $LANG_PAYPAL_ADMIN = array(
 );
 
 $LANG_PAYPAL_CART = array(
+    'merchant_not_configured' => 'The PayPal merchant account is not configured. In Sandbox, use the Merchant ID or confirmed email of the Sandbox Business account.',
     'cart'                    => 'Your shopping cart',
 	'item'                    => 'item',
 	'items'                   => 'items',
@@ -410,6 +451,9 @@ $LANG_PAYPAL_CART = array(
     'quantity'                => 'Qty',
     'item_price'              => 'Item price',
     'continue_shopping'       => 'Continue shopping',
+    'payment_methods_title'    => 'Payment methods',
+    'payment_card_paypal'      => 'Credit/debit card or PayPal',
+    'payment_card_paypal_help' => 'Pay securely by card or with PayPal. A PayPal account may not be required for card payments.',
 	'payment_check'           => 'Pay by check',
 	'total'                   => 'Total',
 	'free_shipping'           => 'Free shipping',
@@ -418,7 +462,7 @@ $LANG_PAYPAL_CART = array(
 
 $LANG_PAYPAL_TYPE = array(
     'product'                 => 'Product',
-	'subscrition'             => 'Subscription',
+	'subscription'             => 'Subscription',
 	'donation'                => 'Donation',
 	'rent'                    => 'Rent',
 	'recurrent'               => 'Recurrent payment'
@@ -446,12 +490,6 @@ $LANG_PAYPAL_EMAIL = array(
 	'order_confirmation'          => 'Order confirmation',
 	'thank_you_order'             => 'Thanks you for your order of:',
 	'send_check'                  => 'To complete your purchase, send your payment to the following address:',
-);
-
-$LANG_PAYPAL_PRO = array (
-    'pro_feature'                     => 'Note: You are using the paypal plugin limited edition. To get full features you need to upgrade to Paypal Pro plugin version.',
-    'pro_feature_manual_subscription' => 'Manual subscription is a Paypal Pro feature.',
-	'add_attributes'                  => 'Save your product first, then you can add attributes to this product. Nota bene: You need to create at least one attribute before you can add it.',
 );
 
 $LANG_PAYPAL_LOGIN = array(
@@ -491,7 +529,7 @@ $LANG_confignames['paypal'] = array(
 	'hide_paypal_menu'           => 'Hide Paypal menu',
 	'paypal_login_required'      => 'Paypal login required',
 	'paypalURL'                  => 'Paypal url',
-	'receiverEmailAddr'          => 'Receiver email address',
+	'receiverEmailAddr'          => 'PayPal Merchant ID or confirmed email',
 	'currency'                   => 'Currency',
 	'anonymous_buy'              => 'Anonymous user can buy',
     'purchase_email_user'        => 'Email User upon purchase',
@@ -535,9 +573,15 @@ $LANG_confignames['paypal'] = array(
     'view_review'                => 'View review',
     'display_2nd_buttons'        => 'Display 2nd buttons',
 	'display_blocks'             => 'Display blocks',
+    'cart_block_enabled'        => 'Enable dynamic cart block',
+    'cart_block_isleft'         => 'Display cart block on the left',
+    'cart_block_order'          => 'Cart block order',
+    'random_block_enabled'      => 'Enable dynamic random product block',
+    'random_block_isleft'       => 'Display random product block on the left',
+    'random_block_order'        => 'Random product block order',
 	'display_item_id'            => 'Display item ID on products list',
 	'display_complete_memberships' => 'Display complete list of memberships',
-	'enable_pay_by_ckeck'        => 'Enabled pay by check',
+	'enable_pay_by_check'       => 'Enabled pay by check',
 	'enable_buy_now'             => 'Enabled buy now buttons',
 	'enable_pay_by_paypal'       => 'Enabled pay by paypal',
 	'displayCatImage'            => 'Display category image',
@@ -545,11 +589,80 @@ $LANG_confignames['paypal'] = array(
 	'categoryHeading'            => 'Categories header',
 	'seo_shop_title'             => 'SEO shop title',
 	'displayCatDescription'      => 'Display category description',
-	'attribute_thumbnail_size'   => 'Attribute thumbnail size (Pro version)',
+	'attribute_thumbnail_size'   => 'Attribute thumbnail size',
 	//Paypal 1.6
 	'API_UserName'               => 'API UserName',
     'API_Password' 	             => 'API Password',
     'API_Signature'              => 'API Signature',
+);
+
+$LANG_PAYPAL_TOOLTIPS = array(
+    'paypal_folder' => 'Public folder used by the PayPal storefront, normally paypal.',
+    'menulabel' => 'Label used for the PayPal entry in the Geeklog site menu.',
+    'paypal_login_required' => 'Require visitors to log in before using the PayPal storefront.',
+    'hide_paypal_menu' => 'Hide the PayPal storefront entry from the Geeklog main menu.',
+    'paypalURL' => 'PayPal host used for checkout and IPN verification. Use www.sandbox.paypal.com for tests and www.paypal.com for live payments.',
+    'receiverEmailAddr' => 'Merchant identity sent as PayPal business. Prefer the Merchant ID instead of an email address. For card payments without PayPal login, enable Guest Checkout / PayPal account optional in the PayPal Business account Website payment preferences. In Sandbox, configure this on the Sandbox Business account. PayPal can still decide not to offer guest card checkout for a transaction.',
+    'currency' => 'Currency code used for all store transactions, for example EUR, USD or GBP. It must be enabled on the merchant account.',
+    'anonymous_buy' => 'Allow visitors who are not logged in to purchase products when login is not otherwise required.',
+    'purchase_email_user' => 'Send a purchase confirmation email to authenticated buyers.',
+    'purchase_email_user_attach' => 'Attach purchased downloadable files to authenticated buyer emails when possible.',
+    'purchase_email_anon' => 'Send a purchase confirmation email to anonymous buyers.',
+    'purchase_email_anon_attach' => 'Attach purchased downloadable files to anonymous buyer emails when possible.',
+    'enable_buy_now' => 'Display Buy Now buttons for products that can be purchased directly.',
+    'enable_pay_by_paypal' => 'Allow checkout through PayPal.',
+    'enable_pay_by_check' => 'Allow the alternative pay-by-check workflow.',
+    'API_UserName' => 'Legacy PayPal NVP/SOAP API username. This is not the Merchant ID used by the checkout business field.',
+    'API_Password' => 'Legacy PayPal NVP/SOAP API password.',
+    'API_Signature' => 'Legacy PayPal NVP/SOAP API signature.',
+    'default_permissions' => 'Default Geeklog owner, group, member and anonymous permissions assigned to new PayPal items.',
+    'paypal_main_header' => 'Content displayed above the main product catalogue. Autotags are supported where Geeklog allows them.',
+    'paypal_main_footer' => 'Content displayed below the main product catalogue.',
+    'products_col' => 'Number of product columns used by the catalogue layout.',
+    'order' => 'Default order used to list products.',
+    'view_membership' => 'Display membership-related navigation and history.',
+    'display_complete_memberships' => 'Display the complete membership list instead of only current entries.',
+    'view_review' => 'Display product reviews when review support is available.',
+    'display_2nd_buttons' => 'Display the secondary product action buttons.',
+    'display_blocks' => 'Choose which Geeklog side blocks are shown on PayPal public pages.',
+    'display_item_id' => 'Display the product item identifier in catalogue listings.',
+    'cart_block_enabled' => 'Enable the dynamic cart block provided by the PayPal plugin.',
+    'cart_block_isleft' => 'Place the dynamic cart block on the left when enabled. Disable to use the right side.',
+    'cart_block_order' => 'Display order of the dynamic cart block relative to other blocks on the same side.',
+    'random_block_enabled' => 'Enable the dynamic random-product block.',
+    'random_block_isleft' => 'Place the random-product block on the left when enabled. Disable to use the right side.',
+    'random_block_order' => 'Display order of the random-product block relative to other blocks on the same side.',
+    'max_images_per_products' => 'Maximum number of images that may be attached to one product.',
+    'max_image_width' => 'Maximum width accepted for uploaded product images.',
+    'max_image_height' => 'Maximum height accepted for uploaded product images.',
+    'max_image_size' => 'Maximum product image file size accepted by the plugin.',
+    'max_thumbnail_size' => 'Maximum display size used for product thumbnails.',
+    'attribute_thumbnail_size' => 'Thumbnail size used for attribute images.',
+    'thumb_width' => 'Catalogue thumbnail width.',
+    'thumb_height' => 'Catalogue thumbnail height.',
+    'maxPerPage' => 'Maximum number of products displayed on one catalogue page.',
+    'categoryHeading' => 'Heading displayed above the category list.',
+    'categoryColumns' => 'Number of columns used by the category list.',
+    'displayCatImage' => 'Display category images in the storefront.',
+    'catImageWidth' => 'Display width used for category images.',
+    'displayCatDescription' => 'Display category descriptions in the storefront.',
+    'image_url' => 'Optional logo image URL sent to PayPal Checkout.',
+    'cpp_header_image' => 'Optional PayPal Checkout header image URL.',
+    'cpp_headerback_color' => 'Optional hexadecimal background color for the PayPal Checkout header.',
+    'cpp_headerborder_color' => 'Optional hexadecimal border color for the PayPal Checkout header.',
+    'cpp_payflow_color' => 'Optional hexadecimal background color for the PayPal Checkout payment area.',
+    'cs' => 'PayPal Checkout page background style selector supported by the legacy Website Payments Standard flow.',
+    'shop_name' => 'Business or shop name displayed on invoices and shop information.',
+    'shop_street1' => 'Primary street address of the shop.',
+    'shop_street2' => 'Optional second address line of the shop.',
+    'shop_postal' => 'Postal or ZIP code of the shop.',
+    'shop_city' => 'City of the shop.',
+    'shop_country' => 'Country of the shop.',
+    'shop_siret' => 'Business registration or SIRET number displayed by the shop when applicable.',
+    'shop_phone1' => 'Primary contact phone number.',
+    'shop_phone2' => 'Optional secondary contact phone number.',
+    'shop_fax' => 'Optional fax number.',
+    'seo_shop_title' => 'SEO title used for the public storefront.'
 );
 
 /**
@@ -557,9 +670,17 @@ $LANG_confignames['paypal'] = array(
 *   @global array $LANG_configsubgroups['paypal']
 */
 $LANG_configsubgroups['paypal'] = array(
-    'sg_main' => 'Main Settings',
-	'sg_display' => 'Display Settings',
-	'sg_myshop' => 'My shop'
+    'sg_main' => 'Main Settings'
+);
+
+$LANG_tab['paypal'] = array(
+    'tab_general' => 'General',
+    'tab_payments' => 'Payments',
+    'tab_catalog' => 'Catalog',
+    'tab_images' => 'Images',
+    'tab_checkout' => 'PayPal Checkout',
+    'tab_shop' => 'Shop',
+    'tab_blocks' => 'Dynamic Blocks'
 );
 
 /**
@@ -567,13 +688,14 @@ $LANG_configsubgroups['paypal'] = array(
 *   @global array $LANG_fs['paypal']
 */
 $LANG_fs['paypal'] = array(
-    'fs_main'            => 'General Settings',
-    'fs_images'          => 'Images settings',
-    'fs_permissions'     => 'Default Permissions',
-	'fs_display'         => 'Display settings',
-	'fs_checkoutpage'    => 'Paypal checkout page',
-	'fs_shopdetails'     => 'Shop details'
- );
+    'fs_general'  => 'General Settings',
+    'fs_payments' => 'Payment Methods and PayPal API',
+    'fs_catalog'  => 'Catalog Display',
+    'fs_images'   => 'Images',
+    'fs_checkout' => 'PayPal Checkout Appearance',
+    'fs_shop'     => 'Shop Details',
+    'fs_blocks'   => 'Dynamic Blocks'
+);
 
 /**
 *   Configuration system selection strings

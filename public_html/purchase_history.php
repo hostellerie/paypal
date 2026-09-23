@@ -48,27 +48,25 @@ require_once '../lib-common.php';
 /* Ensure sufficient privs to read this page */
 paypal_access_check();
 
+$vars = array('msg' => 'text');
+paypal_filterVars($vars, $_REQUEST);
+
 /* Purchase history for anonymous users/paypal viewers doesn't make sense */
-if (!SEC_hasRights('paypal.user','paypal.admin','OR') || COM_isAnonUser() ) {
-    $display = COM_siteHeader();
-    $display .= paypal_viewer_menu();
+if (!SEC_hasRights('paypal.user,paypal.admin', 'OR') || COM_isAnonUser() ) {
+    $display = paypal_viewer_menu();
     $display .= PAYPAL_loginRequiredForm();
-    $display .= COM_siteFooter();
-    echo $display;
+    echo PAYPAL_createHTMLDocument($display);
     exit;
 }
 
 //Main
 
-$display = COM_siteHeader();
-$display .= paypal_user_menu();
+$display = paypal_user_menu();
 
 if (!empty($_REQUEST['msg'])) $display .= COM_showMessageText( stripslashes($_REQUEST['msg']), $LANG_PAYPAL_1['message']);
 
 $display .= PAYPAL_displayPurchaseHistory ();
 
-$display .= COM_siteFooter();
-
-COM_output($display);
+COM_output(PAYPAL_createHTMLDocument($display));
 
 ?>

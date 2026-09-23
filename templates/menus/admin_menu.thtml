@@ -1,13 +1,28 @@
 {# begin {templatelocation} #}
 
-<div class="paypal_user_menu"> 
- <a href="{site_url}/admin/plugins/paypal/purchase_history.php">{purchase_history}</a> | 
- <a href="{site_url}/admin/plugins/paypal/index.php">{product_list_label}</a> |
- <a href="{site_url}/admin/plugins/paypal/subscriptions.php">{subscriptions}</a> | 
- <a href="{site_url}/admin/plugins/paypal/recurring_payments.php">{recurring_payments}</a> | 
- <a href="{site_url}/admin/plugins/paypal/downloads_history.php">{downloads_history}</a> | 
- <a href="{site_url}/admin/plugins/paypal/ipnlog.php">{view_IPN_log}</a> |
- <a href="{paypal_url}/index.php">{store}</a>
+<div class="paypal-admin-nav">
+  <div class="paypal-admin-nav__links">
+    <a href="{site_url}/admin/plugins/paypal/purchase_history.php">{purchase_history}</a>
+    <span aria-hidden="true">|</span>
+    <a href="{site_url}/admin/plugins/paypal/index.php">{product_list_label}</a>
+    <span aria-hidden="true">|</span>
+    <a href="{site_url}/admin/plugins/paypal/subscriptions.php">{subscriptions}</a>
+    <span aria-hidden="true">|</span>
+    <a href="{site_url}/admin/plugins/paypal/recurring_payments.php">{recurring_payments}</a>
+    <span aria-hidden="true">|</span>
+    <a href="{site_url}/admin/plugins/paypal/downloads_history.php">{downloads_history}</a>
+    <span aria-hidden="true">|</span>
+    <a href="{site_url}/admin/plugins/paypal/ipnlog.php">{view_IPN_log}</a>
+    <span aria-hidden="true">|</span>
+    <a href="{site_url}/admin/plugins/paypal/help.php">{help}</a>
+    <span aria-hidden="true">|</span>
+    <a href="{paypal_url}/index.php">{store}</a>
+  </div>
+
+  <form class="paypal-admin-nav__config" method="post" action="{admin_url}/configuration.php">
+    <input type="hidden" name="conf_group" value="paypal">
+    <button class="paypal-admin-button paypal-admin-button-primary" type="submit">{configuration}</button>
+  </form>
 </div>
 
 {# end {templatelocation} #}

@@ -1,7 +1,7 @@
 <?php
 
 /*
-Copyright (c) 2008 Sebastián Grignoli
+Copyright (c) 2008 SebastiÃ¡n Grignoli
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -30,7 +30,7 @@ POSSIBILITY OF SUCH DAMAGE.
 */
 
 /**
- * @author   "Sebastián Grignoli" <grignoli@framework2.com.ar>
+ * @author   "SebastiÃ¡n Grignoli" <grignoli@framework2.com.ar>
  * @package  Encoding
  * @version  1.2
  * @link     https://github.com/neitanod/forceutf8
@@ -157,15 +157,15 @@ class Encoding {
    *
    * It may fail to convert characters to UTF-8 if they fall into one of these scenarios:
    *
-   * 1) when any of these characters:   ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏĞÑÒÓÔÕÖ×ØÙÚÛÜİŞß
+   * 1) when any of these characters:   Ã€ÃÃ‚ÃƒÃ„Ã…Ã†Ã‡ÃˆÃ‰ÃŠÃ‹ÃŒÃÃÃÃÃ‘Ã’Ã“Ã”Ã•Ã–Ã—Ã˜Ã™ÃšÃ›ÃœÃÃÃŸ
    *    are followed by any of these:  ("group B")
-   *                                    ¡¢£¤¥¦§¨©ª«¬­®¯°±²³´µ¶•¸¹º»¼½¾¿
-   * For example:   %ABREPRESENT%C9%BB. «REPRESENTÉ»
-   * The "«" (%AB) character will be converted, but the "É" followed by "»" (%C9%BB) 
+   *                                    Â¡Â¢Â£Â¤Â¥Â¦Â§Â¨Â©ÂªÂ«Â¬Â­Â®Â¯Â°Â±Â²Â³Â´ÂµÂ¶â€¢Â¸Â¹ÂºÂ»Â¼Â½Â¾Â¿
+   * For example:   %ABREPRESENT%C9%BB. Â«REPRESENTÃ‰Â»
+   * The "Â«" (%AB) character will be converted, but the "Ã‰" followed by "Â»" (%C9%BB) 
    * is also a valid unicode character, and will be left unchanged.
    *
-   * 2) when any of these: àáâãäåæçèéêëìíîï  are followed by TWO chars from group B,
-   * 3) when any of these: ğñòó  are followed by THREE chars from group B.
+   * 2) when any of these: Ã Ã¡Ã¢Ã£Ã¤Ã¥Ã¦Ã§Ã¨Ã©ÃªÃ«Ã¬Ã­Ã®Ã¯  are followed by TWO chars from group B,
+   * 3) when any of these: Ã°Ã±Ã²Ã³  are followed by THREE chars from group B.
    *
    * @name toUTF8
    * @param string $text  Any string.
@@ -185,11 +185,11 @@ class Encoding {
       $max = strlen($text);
       $buf = "";
       for($i = 0; $i < $max; $i++){
-          $c1 = $text{$i};
+          $c1 = $text[$i];
           if($c1>="\xc0"){ //Should be converted to UTF8, if it's not UTF8 already
-            $c2 = $i+1 >= $max? "\x00" : $text{$i+1};
-            $c3 = $i+2 >= $max? "\x00" : $text{$i+2};
-            $c4 = $i+3 >= $max? "\x00" : $text{$i+3};
+            $c2 = $i+1 >= $max? "\x00" : $text[$i+1];
+            $c3 = $i+2 >= $max? "\x00" : $text[$i+2];
+            $c4 = $i+3 >= $max? "\x00" : $text[$i+3];
               if($c1 >= "\xc0" & $c1 <= "\xdf"){ //looks like 2 bytes UTF8
                   if($c2 >= "\x80" && $c2 <= "\xbf"){ //yeah, almost sure it's UTF8 already
                       $buf .= $c1 . $c2;

@@ -9,7 +9,7 @@
 	<table border="0" width="100%" cellspacing="3" cellpadding="2">
 	<tr  valign="top">
 	    <td>
-	        <h2>{shop_name}</h2>
+	        <p class="paypal-transaction-party"><strong>{shop_name}</strong></p>
 		    {shop_street1} {br}
 		    {shop_street2}
 		    {shop_postal} {shop_city}
@@ -20,7 +20,7 @@
 		    {shop_proid}
 	    </td>
 	    <td>
-			<h2>{user_name}</h2>
+			<p class="paypal-transaction-party"><strong>{user_name}</strong></p>
 		    {user_street1} {br}
 		    {user_postal} {user_city} {br}
 		    {user_country}

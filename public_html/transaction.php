@@ -43,8 +43,8 @@ $type = $_REQUEST['type']; //purchase or subscription
 // Ensure sufficient privs to read this page
 //if (($_USER['uid'] < 2) && ($_PAY_CONF['anonymous_buy'] == 0)) {
 if ($_USER['uid'] < 2 ) {
-    $display .= COM_siteHeader();
-	if (SEC_hasRights('paypal.user', 'paypal.admin')) {
+    $display = '';
+	if (SEC_hasRights('paypal.user,paypal.admin', 'OR')) {
         $display .= paypal_user_menu();
     } else {
         $display .= paypal_viewer_menu();
@@ -52,8 +52,7 @@ if ($_USER['uid'] < 2 ) {
     $display .= COM_startBlock($LANG_PAYPAL_1['access_reserved']);
     $display .= $LANG_PAYPAL_1['you_must_log_in'];
     $display .= COM_endBlock();
-    $display .= COM_siteFooter();
-    COM_output($display);
+    COM_output(PAYPAL_createHTMLDocument($display, $LANG_PAYPAL_1['access_reserved']));
     exit;
 }
 
@@ -84,7 +83,7 @@ $A = DB_fetchArray($res, false);
 
 $purchase_status = $A['status'];
 
-$transaction = new Template($_CONF['path'] . 'plugins/paypal/templates/transaction');
+$transaction = COM_newTemplate($_CONF['path'] . 'plugins/paypal/templates/transaction');
 if ($_REQUEST['mode'] == 'print') {
     $transaction->set_file(array('transaction' => 'print_' . $type . '.thtml'));
 } else {
@@ -92,10 +91,16 @@ if ($_REQUEST['mode'] == 'print') {
 }
 
 // Allow all serialized data to be available to the template
-$ipn ='';
+$ipn = array();
 if ($A['ipn_data'] != '') {
-	$out = preg_replace('!s:(\d+):"(.*?)";!se', "'s:'.strlen('$2').':\"$2\";'", $A['ipn_data'] ); 
-	$ipn = unserialize($out);
+    $out = preg_replace_callback(
+        '!s:(\\d+):"(.*?)";!s',
+        function ($matches) {
+            return 's:' . strlen($matches[2]) . ':"' . $matches[2] . '";';
+        },
+        $A['ipn_data']
+    );
+    $ipn = @unserialize($out);
 	if (!is_array($ipn)) {
 		$ipn = array();
 	}
@@ -103,6 +108,24 @@ if ($A['ipn_data'] != '') {
 		$transaction->set_var($name, $value);
 	}
 }
+
+$ipn += array(
+    'address_name' => '',
+    'address_street' => '',
+    'address_zip' => '',
+    'address_city' => '',
+    'address_country' => '',
+    'custom' => isset($A['user_id']) ? (int) $A['user_id'] : 0,
+    'txn_id' => isset($A['txn_id']) ? (string) $A['txn_id'] : '',
+    'payment_type' => '',
+    'mc_gross' => isset($A['price']) ? $A['price'] : 0,
+    'mc_handling' => 0,
+    'mc_shipping' => 0,
+    'quantity' => isset($A['quantity']) ? $A['quantity'] : 1,
+    'quantity0' => '',
+    'quantity1' => '',
+    'item_name1' => isset($A['name']) ? $A['name'] : '',
+);
 
 if ( $A['user_id'] != '' && ($_USER['uid'] != $A['user_id']) && SEC_hasRights('paypal.admin') == false) {
     COM_errorLog('Error on Paypal transaction page: User is not allowed to see transaction. Type=' . $type .  ' ID=' . $pid . ' User='. $_USER['uid'] . ' User of the transaction='. $A['user_id']);
@@ -112,8 +135,8 @@ if ( $A['user_id'] != '' && ($_USER['uid'] != $A['user_id']) && SEC_hasRights('p
 
 //Log-In to access
 if (($_USER['uid'] < 2) && ($A['logged'] == 1)) {
-    $display .= COM_siteHeader();
-	if (SEC_hasRights('paypal.user', 'paypal.admin')) {
+    $display = '';
+	if (SEC_hasRights('paypal.user,paypal.admin', 'OR')) {
         $display .= paypal_user_menu();
     } else {
         $display .= paypal_viewer_menu();
@@ -121,8 +144,7 @@ if (($_USER['uid'] < 2) && ($A['logged'] == 1)) {
     $display .= COM_startBlock($LANG_PAYPAL_1['access_reserved']);
     $display .= $LANG_PAYPAL_1['you_must_log_in'];
     $display .= COM_endBlock();
-    $display .= COM_siteFooter();
-    COM_output($display);
+    COM_output(PAYPAL_createHTMLDocument($display, $LANG_PAYPAL_1['access_reserved']));
     exit;
 }
 
@@ -178,13 +200,17 @@ if ($ipn['address_name'] == '' || $ipn['address_street'] == '' || $ipn['address_
 	$sql = "SELECT * FROM {$_TABLES['paypal_users']} WHERE user_id = {$ipn['custom']}";
             $res = DB_query($sql);
             $details = DB_fetchArray($res);
-    //values
-	$ipn['address_name'] = $details['user_name'];
-	$ipn['address_street'] = $details['user_street1'];
-	if ($details['user_street2'] != '') $ipn['address_street'] .= '<br/>'. $details['user_street2'];
-	$ipn['address_zip'] = $details['user_postal'];
-	$ipn['address_city'] = $details['user_city'];
-	$ipn['address_country'] = $details['user_country'];
+    if (is_array($details)) {
+        // values
+	    $ipn['address_name'] = isset($details['user_name']) ? $details['user_name'] : '';
+	    $ipn['address_street'] = isset($details['user_street1']) ? $details['user_street1'] : '';
+	    if (!empty($details['user_street2'])) {
+            $ipn['address_street'] .= '<br/>'. $details['user_street2'];
+        }
+	    $ipn['address_zip'] = isset($details['user_postal']) ? $details['user_postal'] : '';
+	    $ipn['address_city'] = isset($details['user_city']) ? $details['user_city'] : '';
+	    $ipn['address_country'] = isset($details['user_country']) ? $details['user_country'] : '';
+    }
 }
 
 $transaction->set_var('user_name', $ipn['address_name'] );
@@ -209,8 +235,19 @@ if ($purchase_status == 'complete' || $purchase_status == '') {
 } else {
     $transaction->set_var('paid_on', $LANG_PAYPAL_1['order_on'] . ' ' . $purchase_date[0]);
 	if (SEC_hasRights('paypal.admin') && $A['status'] == 'pending') {
-	    $transaction->set_var('edit', '<p><a href="' . $_CONF['site_url'] . '/admin/plugins/paypal/purchase_history.php?mode=edit&amp;txn_id=' . 
-		$ipn['txn_id'] . '" onclick="return confirm(\'' . $LANG_PAYPAL_1['confirm_edit_status'] .'\');">>> ' . $LANG_PAYPAL_1['validate_order'] . '</a></p>');
+        $safeTxnId = htmlspecialchars((string) $ipn['txn_id'], ENT_QUOTES, 'UTF-8');
+        $transaction->set_var(
+            'edit',
+            '<form method="post" action="' . $_CONF['site_admin_url'] . '/plugins/paypal/purchase_history.php" '
+            . 'onsubmit="return confirm('
+            . htmlspecialchars(json_encode($LANG_PAYPAL_1['confirm_edit_status']), ENT_QUOTES, 'UTF-8')
+            . ');">'
+            . '<input type="hidden" name="mode" value="edit"' . XHTML . '>'
+            . '<input type="hidden" name="txn_id" value="' . $safeTxnId . '"' . XHTML . '>'
+            . '<input type="hidden" name="' . CSRF_TOKEN . '" value="' . SEC_createToken() . '"' . XHTML . '>'
+            . '<button type="submit">&gt;&gt; ' . $LANG_PAYPAL_1['validate_order'] . '</button>'
+            . '</form>'
+        );
 	}
 }
 
@@ -218,8 +255,11 @@ if ($purchase_status == 'complete' || $purchase_status == '') {
 $transaction->set_var('receipt', $LANG_PAYPAL_1['transaction'] . ': ' . $ipn['txn_id']);
 
 //Todo implement payment_type on purchase
-if ($ipn['payment_type'] != '') {
-    $transaction->set_var('payment_type', $LANG_PAYPAL_1['by'] . ' ' . $LANG_PAYPAL_PAYMENT[$ipn['payment_type']]);
+if ($ipn['payment_type'] !== '') {
+    $paymentTypeLabel = isset($LANG_PAYPAL_PAYMENT[$ipn['payment_type']])
+        ? $LANG_PAYPAL_PAYMENT[$ipn['payment_type']]
+        : $ipn['payment_type'];
+    $transaction->set_var('payment_type', $LANG_PAYPAL_1['by'] . ' ' . $paymentTypeLabel);
 } else {
     $transaction->set_var('payment_type', '');
 }
@@ -339,8 +379,8 @@ $content = $transaction->finish($transaction->get_var('output'));
 if ($_REQUEST['mode'] == 'print') {
     $display = $content;
 } else {
-    $display = COM_siteHeader();
-    if (SEC_hasRights('paypal.user', 'paypal.admin')) {
+    $display = '';
+    if (SEC_hasRights('paypal.user,paypal.admin', 'OR')) {
         $display .= paypal_user_menu();
     } else {
         $display .= paypal_viewer_menu();
@@ -348,7 +388,7 @@ if ($_REQUEST['mode'] == 'print') {
     $display .= COM_startBlock();
     $display .= $content;
     $display .= COM_endBlock();
-    $display .= COM_siteFooter();
+    $display = PAYPAL_createHTMLDocument($display);
 }
 
 COM_output($display);

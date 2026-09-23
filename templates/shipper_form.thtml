@@ -1,15 +1,17 @@
 {# begin {templatelocation} #}
 
 <form action="{admin_url}/plugins/paypal/index.php?mode=shipping" method="POST"  class="uk-form paypal_form">
-	<fieldset style="margin-top: 10px;"><legend><b>{main_settings}</b></legend>
+	
+<input type="hidden" name="{gltoken_name}" value="{gltoken}">
+<fieldset style="margin-top: 10px;"><legend><b>{main_settings}</b></legend>
 	{shipper_id}
-	<p><label>{shipper_label}</label> <font color="red">*</font>
+	<p><label>{shipper_label}</label> <span class="paypal-required">*</span>
 	<input type="text" name="shipper_service_name" value="{shipper_service_name}" size="40" maxlength="100" {xhtml}></p>
 	
-	<p><label>{service_label}</label> <font color="red">*</font>
+	<p><label>{service_label}</label> <span class="paypal-required">*</span>
 	<input type="text" name="shipper_service_service" value="{shipper_service_service}" size="40" maxlength="255" {xhtml}></p>
 	
-	<p><label>{description_label}<label>
+	<p><label>{description_label}</label>
 	<textarea name="shipper_service_description" style="width:100%" cols="45" rows="5">{shipper_service_description}</textarea></p>
 	
 	<p><label>{exclude_cat_label}</label>
@@ -20,7 +22,7 @@
 	</fieldset>
 
 	
-    <p><strong><font color="red">*</font><em> {required_field}</em></strong></p>
+    <p class="paypal-required-note"><span class="paypal-required">*</span> {required_field}</p>
     <select name="op" >
 	<option value="save_shipper" selected="selected">{save_button}</option>
     {delete_button}

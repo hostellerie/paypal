@@ -62,6 +62,7 @@ if (!in_array('paypal', $_PLUGINS)) {
 paypal_access_check('paypal.viewer');
 
 $vars = array('msg'      => 'text',
+              'mode'     => 'alpha',
               'page'     => 'number',
               'category' => 'number',
 			  'type'     => 'text',
@@ -72,13 +73,14 @@ paypal_filterVars($vars, $_REQUEST);
 
 //Main
 
-if ($_REQUEST['n'] == '') {
-    $display .= PAYPAL_siteHeader($_PAY_CONF['seo_shop_title']);
-} else {
-    $display .= PAYPAL_siteHeader($_REQUEST['n'] . ' | ' . $_PAY_CONF['seo_shop_title']);
+$display = '';
+
+$pageTitle = $_PAY_CONF['seo_shop_title'];
+if ($_REQUEST['n'] !== '') {
+    $pageTitle = $_REQUEST['n'] . ' | ' . $pageTitle;
 }
 
-if (SEC_hasRights('paypal.user', 'paypal.admin')) {
+if (SEC_hasRights('paypal.user,paypal.admin', 'OR')) {
     $display .= paypal_user_menu();
 } else {
     $display .= paypal_viewer_menu();
@@ -86,46 +88,57 @@ if (SEC_hasRights('paypal.user', 'paypal.admin')) {
 
 switch ($_REQUEST['mode']) {
     case 'endTransaction':
-	    // START SESSION
-        session_start();
-		// INITIALIZE JCART AFTER SESSION START
-		$cart =& $_SESSION['jcart']; 
-		if(!is_object($cart)) $cart = new jcart();
-		// EMPTY THE CART
-		$cart->empty_cart();
-		
-		$msg = $LANG_PAYPAL_1['thanks_details'];
-		$msg .= '<p>' . $LANG_PAYPAL_1['transaction'] . ' ' . $_POST['txn_id'] . '</p>';
-		$msg .= '<p>' . $LANG_PAYPAL_1['name_label'] . ' ' . $_POST['first_name'] . ' ' . $_POST['last_name'] . ' | ' . $LANG_PAYPAL_1['email'] . ' ' . $_POST['payer_email'] . '</p><ul>';
-		for ($i = 1; $i <= $_POST['num_cart_items']; $i++) {
-            $msg .= '<li>' . $_POST["quantity$i"] . 'x '. $_POST["item_name$i"] . '... '  . $_POST["mc_gross_$i"] . ' ' . $_POST['mc_currency'];
+        $cart = PAYPAL_getCart();
+        $cart->empty_cart();
+        PAYPAL_saveCart($cart);
+
+        $txnId = isset($_POST['txn_id']) ? $_POST['txn_id'] : '';
+        $firstName = isset($_POST['first_name']) ? $_POST['first_name'] : '';
+        $lastName = isset($_POST['last_name']) ? $_POST['last_name'] : '';
+        $payerEmail = isset($_POST['payer_email']) ? $_POST['payer_email'] : '';
+        $currency = isset($_POST['mc_currency']) ? $_POST['mc_currency'] : '';
+        $gross = isset($_POST['mc_gross']) ? $_POST['mc_gross'] : '';
+        $itemCount = isset($_POST['num_cart_items']) ? (int) $_POST['num_cart_items'] : 0;
+
+        $msg = $LANG_PAYPAL_1['thanks_details'];
+        $msg .= '<p>' . $LANG_PAYPAL_1['transaction'] . ' ' . $txnId . '</p>';
+        $msg .= '<p>' . $LANG_PAYPAL_1['name_label'] . ' ' . trim($firstName . ' ' . $lastName)
+            . ' | ' . $LANG_PAYPAL_1['email'] . ' ' . $payerEmail . '</p>';
+
+        if ($itemCount > 0) {
+            $msg .= '<ul>';
+            for ($i = 1; $i <= $itemCount; $i++) {
+                $quantity = isset($_POST["quantity{$i}"]) ? $_POST["quantity{$i}"] : '';
+                $itemName = isset($_POST["item_name{$i}"]) ? $_POST["item_name{$i}"] : '';
+                $itemGross = isset($_POST["mc_gross_{$i}"]) ? $_POST["mc_gross_{$i}"] : '';
+                $msg .= '<li>' . $quantity . 'x ' . $itemName . '... ' . $itemGross . ' ' . $currency . '</li>';
+            }
+            $msg .= '</ul>';
         }
-		$msg .=  '</ul><p>' . $LANG_PAYPAL_1['total']  . ' ' . $_POST['mc_gross'] . ' ' . $_POST['mc_currency'] . '</p>';
+
+        $msg .= '<p>' . $LANG_PAYPAL_1['total'] . ' ' . $gross . ' ' . $currency . '</p>';
         $display .= COM_showMessageText($msg, $LANG_PAYPAL_1['thanks']);
-		$display .= '<div id="cart">' . PAYPAL_displayCart() .'</div>';
-        $display .= PAYPAL_siteFooter();
         break;
 	
 	case 'cancel':
 		$msg = $LANG_PAYPAL_1['cancel_details']; 
         $display .= COM_showMessageText($msg, $LANG_PAYPAL_1['cancel']);
 		$display .= PAYPAL_displayProducts('',0,$_REQUEST['category']);
-		$display .= '<div id="cart">' . PAYPAL_displayCart() .'</div>';
-        $display .= PAYPAL_siteFooter();
         break;
 		
 	default :
-	    if ($_PAY_CONF['paypal_main_header'] != '' && $_REQUEST['category'] == '') $display .= '<div>' . PLG_replaceTags($_PAY_CONF['paypal_main_header']) . '</div>';
-		$display .= PAYPAL_displayProducts('',0,$_REQUEST['category']);
-        
-		if ($_PAY_CONF['paypal_main_footer'] != '') $display .= '<div>' . PLG_replaceTags($_PAY_CONF['paypal_main_footer']) . '</div>';
+        if ($_PAY_CONF['paypal_main_header'] !== '' && $_REQUEST['category'] === '') {
+            $display .= '<div>' . PLG_replaceTags($_PAY_CONF['paypal_main_header']) . '</div>';
+        }
+
+        $display .= PAYPAL_displayProducts('', 0, $_REQUEST['category']);
+
+        if ($_PAY_CONF['paypal_main_footer'] !== '') {
+            $display .= '<div>' . PLG_replaceTags($_PAY_CONF['paypal_main_footer']) . '</div>';
+        }
 		
-		//Display cart
-        $display .= '<div id="cart">' . PAYPAL_displayCart() .'</div>';
-		
-        $display .= PAYPAL_siteFooter();
 }
 
-COM_output($display);
+COM_output(PAYPAL_createHTMLDocument($display, $pageTitle));
 
 ?>

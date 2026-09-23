@@ -1,8 +1,8 @@
 {# begin {templatelocation} #}
-
-{category_heading}
-<table class="categories">
-{categories}
-</table>
-
+<section class="paypal-categories">
+  {category_heading}
+  <div class="paypal-category-grid">
+    {categories}
+  </div>
+</section>
 {# end {templatelocation} #}

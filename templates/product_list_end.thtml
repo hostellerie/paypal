@@ -1,9 +1,8 @@
 {# begin {templatelocation} #}
-
-<div style="clear:both"></div>
-</table>
-{products_total}
-<p><div style="align: center">{pagination}</div></p>
-</div>
-
+  </div>
+  <div class="paypal-catalog-footer">
+    <div class="paypal-catalog-count">{products_total}</div>
+    <div class="paypal-catalog-pagination">{pagination}</div>
+  </div>
+</section>
 {# end {templatelocation} #}

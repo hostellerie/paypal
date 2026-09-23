@@ -44,6 +44,12 @@ $_PAY_CONF['images_at_url']  = $_CONF['site_url'] . '/'. substr($_CONF['path_ima
 
 if (!isset($_PAY_CONF['enable_buy_now'])) $_PAY_CONF['enable_buy_now'] = 0;
 
+if (!isset($_PAY_CONF['enable_pay_by_check'])) {
+    $_PAY_CONF['enable_pay_by_check'] = isset($_PAY_CONF['enable_pay_by_ckeck'])
+        ? (int) $_PAY_CONF['enable_pay_by_ckeck']
+        : 0;
+}
+
 
 /**
  * Paypal plugin table(s)
@@ -81,11 +87,7 @@ $_PAY_CONF['allowedextensions'] = array (
     'gz'   => 'application/x-gzip-compressed',
     'zip'  => 'application/x-zip-compresseed',
     'tar'  => 'application/x-tar',
-    'php'  => 'text/plain',
-    'phps' => 'text/plain',
     'txt'  => 'text/plain',
-    'html' => 'text/html',
-    'htm'  => 'text/html',
     'bmp'  => 'image/bmp',
     'ico'  => 'image/bmp',
     'gif'  => 'image/gif',
@@ -95,10 +97,8 @@ $_PAY_CONF['allowedextensions'] = array (
     'mp3'  => 'audio/mpeg',
     'wav'  => 'audio/wav',
     'pdf'  => 'application/pdf',
-    'swf'  => 'application/x-shockwave-flash',
     'doc'  => 'application/msword',
-    'xls'  => 'application/vnd.ms-excel',
-    'exe'  => 'application/octet-stream'
+    'xls'  => 'application/vnd.ms-excel'
 );
 
  $_PAY_CONF['download_path'] = $_CONF['path_data'] . 'private/paypal/files/';

@@ -1,37 +1,45 @@
 {# begin {templatelocation} #}
+<article class="paypal-product-detail">
+  <header class="paypal-product-detail__header">
+    <div>
+      <h1>{name}</h1>
+      {item_id}
+    </div>
+    <div class="paypal-product-detail__edit">{edit}</div>
+  </header>
 
-<div id="product">
-	 {edit}
-	<h1>{name}</h1>{item_id}
-	<table border="0" width="100%">
-		<tr valign="top">
-			<td>
-				{pictures}
-			</td>
-			<td width="100%">
-				<div id="product-details">
-				    <p class="product-short-description">{active} {short_description}</p>
-					<p class="product-price"><span id="product-price" style="{display_price}">{price_label} {price_ref} {discount} {price} {currency} {free_shipping}</span> {recurrent}</p>
-					<div id="product-button">{add2cart}{buy_now}{login}{customisable}</div>
-					<p class="product-description">{description}</p>
-					{subscription}
-					{donation}
-					{rent}
-					<div id="product-button">{add2cart2}{buy_now2}</div>
-				</div>
-			</td>
-		</tr>
-		<tr>
-			<td>
-				&nbsp;
-			</td>
-			<td>
-				<p class="rating-product">{rating}</p>
-				{review}
-			</td>
-		</tr>
-	</table>
-	<div style="clear:both"></div>
-</div>
+  <div class="paypal-product-detail__layout">
+    <aside class="paypal-product-detail__media">
+      {pictures}
+    </aside>
 
+    <section class="paypal-product-detail__content">
+      <div class="paypal-product-detail__intro">{active} {short_description}</div>
+
+      <div class="paypal-product-detail__price" style="{display_price}">
+        {price_label} {price_ref} {discount} <strong>{price} {currency}</strong> {free_shipping}
+      </div>
+      <div class="paypal-product-detail__recurrent">{recurrent}</div>
+
+      <div class="paypal-product-detail__actions">
+        {add2cart}{buy_now}{login}{customisable}
+      </div>
+
+      <div class="paypal-product-detail__description">{description}</div>
+
+      <div class="paypal-product-detail__options">
+        {subscription}
+        {donation}
+        {rent}
+      </div>
+
+      <div class="paypal-product-detail__actions">
+        {add2cart2}{buy_now2}
+      </div>
+
+      <div class="paypal-product-detail__rating">{rating}</div>
+      <div class="paypal-product-detail__reviews">{review}</div>
+    </section>
+  </div>
+</article>
 {# end {templatelocation} #}

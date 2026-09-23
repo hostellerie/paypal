@@ -47,7 +47,14 @@
 require_once '../lib-common.php';
 
 // Incoming variable filter
-$vars = array('product' => 'number');
+$vars = array(
+    'product' => 'number',
+    'order' => 'text',
+    'page' => 'number',
+    'query' => 'text',
+    'rt_id' => 'number',
+    'mode' => 'alpha',
+);
 paypal_filterVars($vars, $_REQUEST);
 
 $pid = $_REQUEST['product'];
@@ -94,6 +101,7 @@ if ($_PAY_CONF['paypal_login_required'] == 1) paypal_access_check('paypal.user')
  */
 function PAYPAL_handleView($url, $product)
 {
+    $retval = '';
     global $_CONF, $_TABLES, $_USER, $LANG_ACCESS, $LANG_RATING;
 
     $rt_id = COM_applyFilter ('paypal_' . $product, false);
@@ -104,7 +112,7 @@ function PAYPAL_handleView($url, $product)
          . 'GROUP BY rt_id';
     $result = DB_query ($sql);
     $B = DB_fetchArray ($result);
-    $allowed = $B['count'];
+    $allowed = (is_array($B) && isset($B['count'])) ? (int) $B['count'] : 0;
 
     if ( $allowed >= 1 ) {
         $delete_option = ( SEC_hasRights( 'rating.edit' ) &&
@@ -313,7 +321,8 @@ function PAYPAL_get_review( &$comments, $order, $url, $delete_option = false, $p
             $template->set_var( 'hide_if_preview', '' );
         }
 
-        $template->set_var( 'date', strftime( $_CONF['date'], $A['nice_date'] ));
+        $reviewDate = COM_getUserDateTimeFormat($A['nice_date']);
+        $template->set_var('date', $reviewDate[0]);
 
         // If deletion is allowed, displays delete link (this varible is for the owner of the rating)
         // Now check if you show individual rating or review
@@ -342,7 +351,7 @@ function PAYPAL_get_review( &$comments, $order, $url, $delete_option = false, $p
 			         . 'GROUP BY rid';
 			    $result = DB_query ($sql);
 			    $B = DB_fetchArray ($result);
-			    $allowed = $B['count'];
+			    $allowed = (is_array($B) && isset($B['count'])) ? (int) $B['count'] : 0;
 			
 			    if ( $allowed >= 1 ) {
 			        $access = SEC_hasAccess( $B['owner_id'], $B['group_id'],
@@ -579,8 +588,8 @@ function PAYPAL_review_bar( $rt_id, $title, $order, $url )
     } else {
         $result = DB_query( "SELECT username,fullname FROM {$_TABLES['users']} WHERE uid = 1" );
         $N = DB_fetchArray( $result );
-        $username = $N['username'];
-        $fullname = $N['fullname'];
+        $username = (is_array($N) && isset($N['username'])) ? $N['username'] : 'Anonymous';
+        $fullname = (is_array($N) && isset($N['fullname'])) ? $N['fullname'] : '';
         $uid = 1;
     }
     
@@ -610,7 +619,7 @@ function PAYPAL_review_bar( $rt_id, $title, $order, $url )
 	         . 'GROUP BY rt_id';
 	    $result = DB_query ($sql);
 	    $B = DB_fetchArray ($result);
-	    $allowed = $B['count'];
+	    $allowed = (is_array($B) && isset($B['count'])) ? (int) $B['count'] : 0;
 	
 	    if ( $allowed >= 1 ) {
 	        $access = SEC_hasAccess( $B['owner_id'], $B['group_id'], $B['perm_owner'], $B['perm_group'], $B['perm_members'], $B['perm_anon'] );    
@@ -677,15 +686,13 @@ if (DB_numRows($res) != 1) {
 }
 
 $A = DB_fetchArray($res);
+$type = isset($A['type']) ? $A['type'] : 'product';
+$display = '';
+$saved_images = '';
 
-if ($A['customisable'] != 0 && !function_exists('PAYPALPRO_displayAttributes') ) {
-    echo COM_refresh($_PAY_CONF['site_url'] . '/index.php');
-	exit;
-}
+$pageTitle = $A['name'] . ' - ' . $A['cat_name'];
 
-$display .= PAYPAL_siteHeader($A['name'] . ' - '  . $A['cat_name']);
-
-if (SEC_hasRights('paypal.user', 'paypal.admin')) {
+if (SEC_hasRights('paypal.user,paypal.admin', 'OR')) {
     $display .= paypal_user_menu();
 } else {
     $display .= paypal_viewer_menu();
@@ -801,7 +808,7 @@ if ($icount > 0) {
 	for ($z = 1; $z <= $icount; $z++) {
 		$I = DB_fetchArray($result_products);
 
-		$saved_images .= '<p><a class="lightbox" href="' .  $_PAY_CONF['images_url'] . $I['pi_filename'] . '"><img src="' . $_PAY_CONF['site_url'] . '/timthumb.php?src=' .  $_PAY_CONF['images_url'] . $I['pi_filename'] . '&amp;w=' . $wsize . '&amp;h=' . $hsize . '&amp;zc=1&amp;q=100" alt="' . $A['name'] . '" /></a></p>';
+		$saved_images .= '<p><a class="paypal-image-link" href="' .  $_PAY_CONF['images_url'] . $I['pi_filename'] . '"><img src="' . $_PAY_CONF['site_url'] . '/timthumb.php?src=' .  $_PAY_CONF['images_url'] . $I['pi_filename'] . '&amp;w=' . $wsize . '&amp;h=' . $hsize . '&amp;zc=1&amp;q=100" alt="' . $A['name'] . '" /></a></p>';
 
 	}
 }
@@ -839,7 +846,7 @@ if (( $A['price'] > 0 && ($_USER['uid'] < 2 && $_PAY_CONF['anonymous_buy'] == 0)
                                . "?id={$A['id']}\">" . $LANG_PAYPAL_1['Download'] . "</a>");
 } else if ($A['customisable'] == 1) {
     /*Customisable product*/
-	$product->set_var('attributes', PAYPALPRO_displayCustomAttributes($A['id']));
+	$product->set_var('attributes', PAYPAL_displayCustomAttributes($A['id']));
     $product->set_var('customisable', $product->parse('output', 'custom'));
 }  else if ($A['type'] == 'recurrent') {
 	//Recurrent
@@ -915,11 +922,9 @@ if ( ( $A['active'] == 1   && SEC_hasAccess2($A) ) || SEC_hasRights('paypal.admi
 //Display cart
 $display .= '<div id="cart">' . PAYPAL_displayCart() .'</div>';
 
-$display .= PAYPAL_siteFooter();
-
 //hit +1
 hitProduct($A['id']);
 
-COM_output($display);
+COM_output(PAYPAL_createHTMLDocument($display, $pageTitle));
 
 ?>

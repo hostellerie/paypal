@@ -1,0 +1,53 @@
+{# begin {templatelocation} #}
+
+<div class="paypal-admin-help">
+  <p>{help_intro}</p>
+
+  <h2>{help_quick_actions}</h2>
+  <ul>
+    <li><a href="{admin_url}/index.php">{products}</a> — {help_products}</li>
+    <li><a href="{admin_url}/product_edit.php?type=product">{create_product}</a> — {help_create_product}</li>
+    <li><a href="{admin_url}/subscriptions.php">{subscriptions}</a> — {help_subscriptions}</li>
+    <li><a href="{admin_url}/product_edit.php?type=subscription">{create_membership}</a> — {help_create_membership}</li>
+    <li><a href="{admin_url}/recurring_payments.php">{recurring_payments}</a> — {help_recurring}</li>
+    <li><a href="{admin_url}/product_edit.php?type=recurrent">{create_recurring}</a> — {help_create_recurring}</li>
+  </ul>
+
+  <h2>{help_catalog_setup}</h2>
+  <ul>
+    <li><a href="{admin_url}/index.php?mode=categories">{manage_categories}</a> — {help_categories}</li>
+    <li><a href="{admin_url}/index.php?mode=attributes">{manage_attributes}</a> — {help_attributes}</li>
+    <li><a href="{admin_url}/index.php?mode=attributetypes">{manage_attribute_types}</a> — {help_attribute_types}</li>
+    <li><a href="{admin_url}/index.php?mode=shipping">{manage_shipping}</a> — {help_shipping}</li>
+    <li><a href="{admin_url}/index.php?mode=shipping#shipper_services">{shipper_services}</a> — {help_shipper_services}</li>
+    <li><a href="{admin_url}/index.php?mode=shipping#shipping_locations">{shipping_locations}</a> — {help_shipping_locations}</li>
+  </ul>
+
+  <h2>{help_monitoring}</h2>
+  <ul>
+    <li><a href="{admin_url}/purchase_history.php">{purchase_history}</a> — {help_purchase_history}</li>
+    <li><a href="{admin_url}/downloads_history.php">{downloads}</a> — {help_downloads}</li>
+    <li><a href="{admin_url}/ipnlog.php">{ipn_logs}</a> — {help_ipn}</li>
+  </ul>
+
+  <h2>{help_blocks}</h2>
+  <p>{help_blocks_intro}</p>
+  <ul>
+    <li>{help_cart_block}</li>
+    <li>{help_random_block}</li>
+  </ul>
+
+  <h2>{help_workflow}</h2>
+  <ol>
+    <li>{help_step_config}</li>
+    <li>{help_step_catalog}</li>
+    <li>{help_step_shipping}</li>
+    <li>{help_step_test}</li>
+    <li>{help_step_monitor}</li>
+  </ol>
+
+  <h2>{help_troubleshooting}</h2>
+  <p>{help_troubleshooting_text}</p>
+</div>
+
+{# end {templatelocation} #}

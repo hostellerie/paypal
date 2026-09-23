@@ -27,7 +27,7 @@
 // |                                                                           |
 // +---------------------------------------------------------------------------+
 
-if (strpos(strtolower($_SERVER['PHP_SELF']), 'upgrade.php') !== false) {
+if (isset($_SERVER['PHP_SELF']) && strpos(strtolower($_SERVER['PHP_SELF']), 'upgrade.php') !== false) {
     die('This file can not be used on its own!');
 }
 
@@ -118,14 +118,14 @@ function paypal_upgrade()
             product_id int NOT NULL,
             file varchar(255),
             PRIMARY KEY (id)
-	        ) ENGINE=MyISAM
+	        ) ENGINE=InnoDB
 	        ",1);
 			DB_query("CREATE TABLE {$_TABLES['paypal_images']} (
             pi_pid varchar(40) NOT NULL,
             pi_img_num tinyint(2) unsigned NOT NULL,
             pi_filename varchar(128) NOT NULL,
             PRIMARY KEY (pi_pid,pi_img_num)
-	        ) ENGINE=MyISAM
+	        ) ENGINE=InnoDB
 	        ",1);
 			DB_query("ALTER TABLE {$_TABLES['paypal_products']}
             DROP small_pic, 
@@ -172,7 +172,7 @@ function paypal_upgrade()
             add_to_group int(5) default NULL,
             notification tinyint(1) unsigned NOT NULL default '0',
             PRIMARY KEY  (id)
-	        ) ENGINE=MyISAM
+	        ) ENGINE=InnoDB
 	        ");
 			DB_query("ALTER TABLE {$_TABLES['paypal_products']}
 		    ADD type varchar(15) default 'product' AFTER id,
@@ -212,7 +212,7 @@ function paypal_upgrade()
 	        user_fax varchar(20) default NULL,
             status tinyint(1) DEFAULT '0',
             PRIMARY KEY (user_id)
-            ) ENGINE=MyISAM
+            ) ENGINE=InnoDB
             ");
 		
 			$c->add('fs_checkoutpage', NULL, 'fieldset', 1, 10, NULL, 0, true, 'paypal');
@@ -312,7 +312,7 @@ function paypal_upgrade()
 			perm_members tinyint(1) unsigned NOT NULL default '2',
 			perm_anon tinyint(1) unsigned NOT NULL default '2',
 			PRIMARY KEY  (cat_id)
-			) ENGINE=MyISAM
+			) ENGINE=InnoDB
 			");
 			
 			DB_query("ALTER TABLE {$_TABLES['paypal_products']} 
@@ -327,10 +327,10 @@ function paypal_upgrade()
 				COM_errorLog("Could not retrieve old categories");
 				return 1;
 			}
-			$admin_group = addslashes(DB_getItem($_TABLES['groups'], 'grp_id', "grp_name = 'Paypal Admin'"));
+			$admin_group = (int) DB_getItem($_TABLES['groups'], 'grp_id', "grp_name = 'Paypal Admin'");
 			if (DB_numRows($res) > 0) {
 				while ($A = DB_fetchArray($res, false)) {
-				    $category = addslashes($A['category']);
+				    $category = DB_escapeString($A['category']);
 					DB_query("INSERT INTO {$_TABLES['paypal_categories']}
 							(cat_name, group_id, owner_id)
 						VALUES ('{$category}','{$admin_group}',{$_USER['uid']})");
@@ -403,7 +403,7 @@ function paypal_upgrade()
 			at_price decimal(12,2) default '0',
 			at_image varchar(255) default NULL,
 			PRIMARY KEY (at_id)
-			) ENGINE=MyISAM
+			) ENGINE=InnoDB
 			");
 			
 			DB_query("CREATE TABLE {$_TABLES['paypal_attribute_type']} (
@@ -411,7 +411,7 @@ function paypal_upgrade()
 			at_tname varchar(255),
 			at_torder tinyint(3) default NULL,
 			PRIMARY KEY (at_tid)
-			) ENGINE=MyISAM
+			) ENGINE=InnoDB
 			");
 			
 			DB_query("CREATE TABLE {$_TABLES['paypal_product_attribute']} (
@@ -419,7 +419,7 @@ function paypal_upgrade()
 			pa_pid int(11),
 			pa_aid int(11),
 			PRIMARY KEY (pa_id)
-			) ENGINE=MyISAM
+			) ENGINE=InnoDB
 			");
 			
 			DB_query("CREATE TABLE {$_TABLES['paypal_stock']} (
@@ -429,7 +429,7 @@ function paypal_upgrade()
 			qmax int(6) default NULL,
 			qmin int(6) default NULL,
 			PRIMARY KEY (st_id)
-			) ENGINE=MyISAM
+			) ENGINE=InnoDB
 			");
 			
 			DB_query("CREATE TABLE {$_TABLES['paypal_delivery']} (
@@ -438,7 +438,7 @@ function paypal_upgrade()
 			user_id mediumint(8),
 			provider_id mediumint(8),
 			PRIMARY KEY  (did)
-			) ENGINE=MyISAM
+			) ENGINE=InnoDB
 			");
 			
 			DB_query("CREATE TABLE {$_TABLES['paypal_stock_movements']} (
@@ -447,14 +447,14 @@ function paypal_upgrade()
 			stock_id varchar(255) NOT NULL,
 			deli_id mediumint(8) NOT NULL,
 			PRIMARY KEY (mid)
-			) ENGINE=MyISAM
+			) ENGINE=InnoDB
 			");
 			
 			DB_query("CREATE TABLE {$_TABLES['paypal_providers']} (
 			prov_id mediumint(8) NOT NULL auto_increment,
 			prov_name VARCHAR(80)  NOT NULL,
 			PRIMARY KEY (prov_id)
-			) ENGINE=MyISAM
+			) ENGINE=InnoDB
 			");
 			
 		case '1.3.4' :
@@ -519,8 +519,14 @@ function paypal_upgrade()
 				// Allow all serialized data to be available to the template
 				$ipn ='';
 				if ($B['ipn_data'] != '') {
-					$out = preg_replace('!s:(\d+):"(.*?)";!se', "'s:'.strlen('$2').':\"$2\";'", $B['ipn_data'] ); 
-					$ipn = unserialize($out);
+                    $out = preg_replace_callback(
+                        '!s:(\\d+):"(.*?)";!s',
+                        function ($matches) {
+                            return 's:' . strlen($matches[2]) . ':"' . $matches[2] . '";';
+                        },
+                        $B['ipn_data']
+                    );
+					$ipn = @unserialize($out);
 					
 					if ($ipn['quantity1'] != '') {
 					    //multi products
@@ -566,14 +572,14 @@ function paypal_upgrade()
 				shipper_service_service varchar(255) NOT NULL,
 				shipper_service_description text,
 				PRIMARY KEY  (shipper_service_id) 
-			) ENGINE=MyISAM
+			) ENGINE=InnoDB
 			");
 
 			DB_query("CREATE TABLE {$_TABLES['paypal_shipping_to']} (
 				shipping_to_id int(11) NOT NULL auto_increment,
 				shipping_to_name varchar(255) NOT NULL,
 				PRIMARY KEY  (shipping_to_id) 
-			) ENGINE=MyISAM
+			) ENGINE=InnoDB
 			");
 
 			DB_query("CREATE TABLE {$_TABLES['paypal_shipping_cost']} (
@@ -584,7 +590,7 @@ function paypal_upgrade()
 				shipping_destination_id int(11) NOT NULL,
 				shipping_amt FLOAT (6,2) NOT NULL DEFAULT '0.00',
 				PRIMARY KEY  (shipping_id) 
-			) ENGINE=MyISAM
+			) ENGINE=InnoDB
 			");
 		case '1.3.16' :
             $c = config::get_instance();		    
@@ -634,7 +640,7 @@ function paypal_upgrade()
                 recdate datetime NOT NULL,
                 status varchar(20),
                 PRIMARY KEY (rid) 
-            ) ENGINE=MyISAM
+            ) ENGINE=InnoDB
             ");
 		case '1.5.2' :
 		    DB_query("ALTER TABLE {$_TABLES['paypal_recurrent']}
@@ -665,27 +671,119 @@ function paypal_upgrade()
             DB_query("UPDATE {$_TABLES['plugins']} SET pi_version = '$code_version', pi_gl_version = '$pi_gl_version' WHERE pi_name = 'paypal'");
 	        COM_errorLog( "Updated paypal plugin from v$currentVersion to v$code_version", 1 );
             
-            //move public_html/paypal to custom folder if needed
-            if ($_PAY_CONF['paypal_folder'] != 'paypal' && $_PAY_CONF['paypal_folder'] != '') {
-                if ( rename($_CONF['path_html'] . $_PAY_CONF['paypal_folder'],$_CONF['path_html'] . $_PAY_CONF['paypal_folder'].'_old') ) {
-                   COM_errorLog("PAYPAL - Renamed {$_PAY_CONF['paypal_folder']} folder." );
-                } else {
-                  COM_errorLog("PAYPAL - Can't rename {$_PAY_CONF['paypal_folder']} folder." );
-                }
-                sleep (5);
-                if( rename($_CONF['path_html'] . 'paypal',$_CONF['path_html'] . $_PAY_CONF['paypal_folder']) ) {
-                   COM_errorLog("PAYPAL - Moved paypal files to {$_PAY_CONF['paypal_folder']} folder." );
-                } else {
-                  COM_errorLog("PAYPAL - Can't move paypal files to {$_PAY_CONF['paypal_folder']} folder." );
-                }
-                PAYPAL_delTree($_CONF['path_html'] . $_PAY_CONF['paypal_folder'].'_old');
+            // PayPal 1.7.0: ensure Buy Now has a persisted configuration item
+            // and migrate the historical misspelled check-payment setting.
+            $c = config::get_instance();
+            $paypalConfig = $c->get_config('paypal');
+
+            if (!array_key_exists('enable_buy_now', $paypalConfig)) {
+                $c->add(
+                    'enable_buy_now',
+                    0,
+                    'select',
+                    0,
+                    0,
+                    3,
+                    63,
+                    true,
+                    'paypal'
+                );
             }
-            
-            /* This code is for statistics ONLY */
-            $message =  'Completed paypal plugin upgrade: ' . date('m d Y',time()) . "   AT " . date('H:i', time()) . "\n";
-            $message .= 'Site: ' . $_CONF['site_url'] . ' and Sitename: ' . $_CONF['site_name'] . "\n";
-			if (function_exists('PAYPALPRO_notifyExpiration')) $message .= 'Proversion' . "\n";
-            COM_mail("ben@geeklog.fr","Updated paypal plugin from v$currentVersion to v$code_version",$message);
+
+            if (!array_key_exists('enable_pay_by_check', $paypalConfig)) {
+                $checkPaymentEnabled = array_key_exists('enable_pay_by_ckeck', $paypalConfig)
+                    ? (int) $paypalConfig['enable_pay_by_ckeck']
+                    : 0;
+
+                $c->add(
+                    'enable_pay_by_check',
+                    $checkPaymentEnabled,
+                    'select',
+                    0,
+                    0,
+                    3,
+                    70,
+                    true,
+                    'paypal'
+                );
+            }
+
+            if (array_key_exists('enable_pay_by_ckeck', $paypalConfig)) {
+                $c->del('enable_pay_by_ckeck', 'paypal');
+            }
+
+            // PayPal 1.7.0: add dynamic Geeklog block settings.
+            $dynamicBlockSettings = array(
+                'cart_block_enabled' => array(1, 'select', 3, 60),
+                'cart_block_isleft' => array(0, 'select', 3, 61),
+                'cart_block_order' => array(50, 'text', 0, 62),
+                'random_block_enabled' => array(1, 'select', 3, 65),
+                'random_block_isleft' => array(0, 'select', 3, 66),
+                'random_block_order' => array(60, 'text', 0, 67),
+            );
+            $paypalConfig = $c->get_config('paypal');
+            foreach ($dynamicBlockSettings as $name => $definition) {
+                if (!array_key_exists($name, $paypalConfig)) {
+                    $c->add(
+                        $name,
+                        $definition[0],
+                        $definition[1],
+                        0,
+                        60,
+                        $definition[2],
+                        $definition[3],
+                        true,
+                        'paypal',
+                        60
+                    );
+                }
+            }
+
+            // PayPal 1.7.0: reorganize configuration into Geeklog tabs
+            // without changing the stored values.
+            PAYPAL_applyConfigTabs();
+
+            // PayPal 1.7.0: IPN logs must support IPv6 addresses.
+            DB_query("ALTER TABLE {$_TABLES['paypal_ipnlog']} MODIFY ip_addr varchar(45) NOT NULL");
+
+            // PayPal 1.7.0: payment/order tables use transactional storage.
+            $paypalTables = array(
+                'paypal_ipnlog',
+                'paypal_downloads',
+                'paypal_products',
+                'paypal_purchases',
+                'paypal_images',
+                'paypal_categories',
+                'paypal_subscriptions',
+                'paypal_users',
+                'paypal_attributes',
+                'paypal_attribute_type',
+                'paypal_product_attribute',
+                'paypal_stock',
+                'paypal_delivery',
+                'paypal_stock_movements',
+                'paypal_providers',
+                'paypal_shipper_service',
+                'paypal_shipping_to',
+                'paypal_shipping_cost',
+                'paypal_recurrent'
+            );
+
+            foreach ($paypalTables as $tableKey) {
+                if (isset($_TABLES[$tableKey])) {
+                    DB_query("ALTER TABLE {$_TABLES[$tableKey]} ENGINE=InnoDB", 1);
+                }
+            }
+
+            // PayPal 1.7.0 deliberately performs no public-directory rename here.
+            // Shared plugin files may serve several Geeklog sites whose persisted
+            // plugin versions are upgraded independently.
+            COM_errorLog(
+                "PayPal upgrade completed for this site from v$currentVersion to v$code_version. "
+                . "No shared public files were renamed or deleted.",
+                1
+            );
+
     }
 	
     return true;

@@ -1,13 +1,15 @@
 {# begin {templatelocation} #}
 
 <form action="{admin_url}/plugins/paypal/index.php?mode=attributetypes" method="POST" enctype="multipart/form-data"  class="uk-form paypal_form">
-	<fieldset style="margin-top: 10px;"><legend><b>{main_settings}</b></legend>
+	
+<input type="hidden" name="{gltoken_name}" value="{gltoken}">
+<fieldset style="margin-top: 10px;"><legend><b>{main_settings}</b></legend>
 	{at_tid}
-	<h2>{type_label}<font color="red"> *</font> <input type="text" name="type" value="{at_tname}" size="80" maxlength="255" {xhtml}></h2>	
-	<h2>{order_label} <input type="text" name="order" value="{order}" size="20" maxlength="30" {xhtml}></h2>
+	<p class="paypal-form-row">{type_label}<span class="paypal-required"> *</span> <input type="text" name="type" value="{at_tname}" size="80" maxlength="255" {xhtml}></p>	
+	<p class="paypal-form-row"><label>{order_label}</label> <input type="text" name="order" value="{order}" size="20" maxlength="30" {xhtml}></p>
 	</fieldset>
 	
-    <p><strong><font color="red">*</font><em> {required_field}</em></strong></p>
+    <p><strong><span class="paypal-required"> *</span><em> {required_field}</em></strong></p>
     <select name="op" >
 	<option value="save" selected="selected">{save_button}</option>
     {delete_button}

@@ -14,19 +14,20 @@
 	
 <form action="{site_url}/admin/plugins/paypal/product_edit.php" method="POST" enctype="multipart/form-data"  class="uk-form">
 {id}{product_type}
+<input type="hidden" name="{gltoken_name}" value="{gltoken}" {xhtml}>
   <fieldset style="margin-top: 10px;"><legend><b>{informations}</b></legend>
-  	<h2>{item_id_label} <input type="text" name="item_id" value="{item_id}" size="20" maxlength="80" {xhtml}></h2>
-	<h2>{name_label}<font color="red">*</font> <input type="text" name="name" value="{name}" size="80" maxlength="255" {xhtml}></h2>
+  	<p class="paypal-form-row"><label>{item_id_label}</label> <input type="text" name="item_id" value="{item_id}" size="20" maxlength="80" {xhtml}></p>
+	<p class="paypal-form-row">{name_label}<span class="paypal-required">*</span> <input type="text" name="name" value="{name}" size="80" maxlength="255" {xhtml}></p>
     
-	<h2>{short_description_label}<font color="red">*</font> <input type="text" name="short_description" value="{short_description}" size="80" maxlength="255" {xhtml}></h2>
+	<p class="paypal-form-row">{short_description_label}<span class="paypal-required">*</span> <input type="text" name="short_description" value="{short_description}" size="80" maxlength="255" {xhtml}></p>
     
-	<h2>{category_label}
-	<select name="category">{categories}</select> </h2>
+	<p class="paypal-form-row">{category_label}
+	<select name="category">{categories}</select> </p>
 	
-	<h2>{description_label}</h2>
+	<p class="paypal-form-row"><label for="description">{description_label}</label></p>
     <div style="margin-bottom:15px;"><p><textarea rows="12" id="description" name="description" cols="44">{description}</textarea></p></div>
 	
-	<h2>{price_label}<font color="red">*</font> <input type="text" name="price" value="{price}" size="20" maxlength="20" {xhtml}>  {currency} </h2>
+	<p class="paypal-form-row">{price_label}<span class="paypal-required">*</span> <input type="text" name="price" value="{price}" size="20" maxlength="20" {xhtml}>  {currency} </p>
 	<p><small>{price_edit}</small></p>
 	
   </fieldset>
@@ -44,32 +45,32 @@
   </fieldset>
 
   <fieldset style="margin-top: 10px;"><legend><b>{access_display}</b></legend>	
-	<h2>{logged_to_purchase} <select name="logged">
+	<p class="paypal-form-row">{logged_to_purchase} <select name="logged">
      <option value="0"{logged_no}>{no}</option>
      <option value="1"{logged_yes}>{yes}</option>
-	 </select></h2>
+	 </select></p>
 	 
-	<h2>{hidden} <select name="hidden">
+	<p class="paypal-form-row">{hidden} <select name="hidden">
      <option value="0"{hidden_no}>{no}</option>
      <option value="1"{hidden_yes}>{yes}</option>
-	 </select></h2>
+	 </select></p>
 	
-	<h2>{active} <select name="active">
+	<p class="paypal-form-row">{active} <select name="active">
      <option value="0"{active_no}>{no}</option>
      <option value="1"{active_yes}>{yes}</option>
-	 </select></h2>
+	 </select></p>
 	 
-	<h2>{show_in_blocks} <select name="show_in_blocks">
+	<p class="paypal-form-row">{show_in_blocks} <select name="show_in_blocks">
      <option value="0"{show_in_blocks_no}>{no}</option>
      <option value="1"{show_in_blocks_yes}>{yes}</option>
-	 </select></h2>
+	 </select></p>
   </fieldset>
   
   <fieldset style="margin-top: 10px;"><legend><b>{customisation}</b></legend>	
-	<h2>{customisable} <select name="customisable" onclick="PP_changeCustomisable(this.value)">
+	<p class="paypal-form-row">{customisable} <select name="customisable" onclick="PP_changeCustomisable(this.value)">
      <option value="0"{customisable_no}>{no}</option>
      <option value="1"{customisable_yes}>{yes}</option>
-	 </select></h2>
+	 </select></p>
   </fieldset>
     
   <fieldset style="margin-top: 10px;"><legend><b>{lang_images}</b></legend>
@@ -108,11 +109,11 @@
     </div>
 
     <div id="type_physical">
-    <p>
+    <p class="paypal-form-row">
       <label>{weight_label}</label>
       <input type="text" name="weight" value="{weight}" {xhtml}>
-	  <p><small>{price_edit}</small></p>
     </p>
+    <p><small>{price_edit}</small></p>
 
     <p>
      <label>{shipping_type}</label>
@@ -125,32 +126,32 @@
   </fieldset>
   
   <fieldset style="margin-top: 10px; {display_subscription}"><legend><b>{subscription_product_label}</b></legend>
-    <h2>{duration_label}<font color="red">*</font> <input type="text" name="duration" size="5" value="{duration}" {xhtml}>
+    <p class="paypal-form-row">{duration_label}<span class="paypal-required">*</span> <input type="text" name="duration" size="5" value="{duration}" {xhtml}>
     <select name="duration_type">
       <option value="day" {sel_day}>{day}</option>
       <option value="week" {sel_week}>{week}</option>
       <option value="month" {sel_month}>{month}</option>
       <option value="year" {sel_year}>{year}</option>
-    </select></h2>
+    </select></p>
 
-    <h2>{add_to_group_label} <select name="add_to_group">{add_to_group_options}</select></h2>
+    <p class="paypal-form-row">{add_to_group_label} <select name="add_to_group">{add_to_group_options}</select></p>
     
   </fieldset>
   
   <fieldset style="margin-top: 10px; {display_recurrent}"><legend><b>{recurrent_product_label}</b></legend>
     <p>{frequency_help}</p>
 	
-	<h2>{billing_label} {currency}<font color="red">*</font> <input type="text" name="billingamt" size="5" value="{billingamt}" {xhtml}> </h2>
-	<h2>{period_label} <select name="duration_type_recurrent">
+	<p class="paypal-form-row">{billing_label} {currency}<span class="paypal-required">*</span> <input type="text" name="billingamt" size="5" value="{billingamt}" {xhtml}> </p>
+	<p class="paypal-form-row">{period_label} <select name="duration_type_recurrent">
       <option value="Day" {sel_recurrent_day}>{recurrent_day}</option>
       <option value="Week" {sel_recurrent_week}>{recurrent_week}</option>
       <option value="SemiMonth" {sel_recurrent_semimonth}>{recurrent_semimonth}</option>
       <option value="Month" {sel_recurrent_month}>{recurrent_month}</option>
       <option value="Year" {sel_recurrent_year}>{recurrent_year}</option>
-    </select></h2>
-	<h2>{frequency_label}<font color="red">*</font> <input type="text" name="duration_recurrent" size="5" value="{duration_recurrent}" {xhtml}> </h2>
+    </select></p>
+	<p class="paypal-form-row">{frequency_label}<span class="paypal-required">*</span> <input type="text" name="duration_recurrent" size="5" value="{duration_recurrent}" {xhtml}> </p>
 
-    <h2>{add_to_group_label} <select name="add_to_group_recurrent">{add_to_group_options}</select></h2>
+    <p class="paypal-form-row">{add_to_group_label} <select name="add_to_group_recurrent">{add_to_group_options}</select></p>
     
   </fieldset>
 
@@ -169,7 +170,7 @@
 		</div>
 	</fieldset>
 	
-    <p><strong><font color="red">*</font><em> {required_field}</em></strong></p>
+    <p><strong><span class="paypal-required">*</span><em> {required_field}</em></strong></p>
 
     <select name="op" >
 	<option value="save" selected="selected">{save_button}</option>

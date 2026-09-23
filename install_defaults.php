@@ -32,7 +32,7 @@
 // +---------------------------------------------------------------------------+
 //
 
-if (strpos(strtolower($_SERVER['PHP_SELF']), 'install_defaults.php') !== false) {
+if (isset($_SERVER['PHP_SELF']) && strpos(strtolower($_SERVER['PHP_SELF']), 'install_defaults.php') !== false) {
     die('This file can not be used on its own!');
 }
 
@@ -49,7 +49,7 @@ if (strpos(strtolower($_SERVER['PHP_SELF']), 'install_defaults.php') !== false) 
 *   Default values to be used during plugin installation/upgrade
 *   @global array $_PAY_DEFAULT
 */
-global $_DB_table_prefix, $_PAY_DEFAULT, $LANG_PAY_1;
+global $_DB_table_prefix, $_PAY_DEFAULT;
 
 $_PAY_DEFAULT = array();
 
@@ -118,6 +118,7 @@ $_PAY_DEFAULT['purchase_email_user']        = true;
 $_PAY_DEFAULT['purchase_email_user_attach'] = true;
 $_PAY_DEFAULT['purchase_email_anon']        = true;
 $_PAY_DEFAULT['purchase_email_anon_attach'] = true;
+$_PAY_DEFAULT['enable_buy_now'] = 0;
 
 /**
  * Number of products to display per page.  0 indicates that all products should
@@ -153,9 +154,18 @@ $_PAY_DEFAULT['products_col'] = 3;
  */
 $_PAY_DEFAULT['order'] = 'name';
 
-$_PAY_DEFAULT['view_memberships'] = 0;
+$_PAY_DEFAULT['view_membership'] = 0;
 $_PAY_DEFAULT['view_review'] = 0;
 $_PAY_DEFAULT['display_2nd_buttons'] = 0;
+$_PAY_DEFAULT['categoryHeading'] = 'Categories';
+
+// Dynamic Geeklog blocks, aligned with the Videos plugin block API.
+$_PAY_DEFAULT['cart_block_enabled'] = 1;
+$_PAY_DEFAULT['cart_block_isleft'] = 0;
+$_PAY_DEFAULT['cart_block_order'] = 50;
+$_PAY_DEFAULT['random_block_enabled'] = 1;
+$_PAY_DEFAULT['random_block_isleft'] = 0;
+$_PAY_DEFAULT['random_block_order'] = 60;
 
 /**
 * Initialize paypal plugin configuration
@@ -166,6 +176,8 @@ $_PAY_DEFAULT['display_2nd_buttons'] = 0;
 * @return   boolean     true: success; false: an error occurred
 *
 */
+require_once __DIR__ . '/lib/configuration.php';
+
 function plugin_initconfig_paypal()
 {
     global $_CONF, $_PAY_DEFAULT, $LANG_PAYPAL_1;
@@ -202,9 +214,11 @@ function plugin_initconfig_paypal()
                 'select', 0, 0, 3, 51, true, 'paypal');
 		$c->add('purchase_email_anon_attach', $_PAY_DEFAULT['purchase_email_anon_attach'],
                 'select', 0, 0, 3, 53, true, 'paypal');
+        $c->add('enable_buy_now', $_PAY_DEFAULT['enable_buy_now'],
+                'select', 0, 0, 3, 63, true, 'paypal');
 		$c->add('enable_pay_by_paypal', 1,
                 'select', 0, 0, 3, 65, true, 'paypal');
-		$c->add('enable_pay_by_ckeck', 0,
+		$c->add('enable_pay_by_check', 0,
                 'select', 0, 0, 3, 70, true, 'paypal');
 		$c->add('API_UserName', 0,
                 'text', 0, 0, 0, 100, true, 'paypal');
@@ -238,6 +252,18 @@ function plugin_initconfig_paypal()
                 'select', 1, 8, 3, 35, true, 'paypal');
 		$c->add('display_blocks', '3','select', 1, 8, 24, 45, true, 'paypal');
 		$c->add('display_item_id', '0','select', 1, 8, 3, 55, true, 'paypal');
+        $c->add('cart_block_enabled', $_PAY_DEFAULT['cart_block_enabled'],
+                'select', 1, 8, 3, 60, true, 'paypal');
+        $c->add('cart_block_isleft', $_PAY_DEFAULT['cart_block_isleft'],
+                'select', 1, 8, 3, 61, true, 'paypal');
+        $c->add('cart_block_order', $_PAY_DEFAULT['cart_block_order'],
+                'text', 1, 8, 0, 62, true, 'paypal');
+        $c->add('random_block_enabled', $_PAY_DEFAULT['random_block_enabled'],
+                'select', 1, 8, 3, 65, true, 'paypal');
+        $c->add('random_block_isleft', $_PAY_DEFAULT['random_block_isleft'],
+                'select', 1, 8, 3, 66, true, 'paypal');
+        $c->add('random_block_order', $_PAY_DEFAULT['random_block_order'],
+                'text', 1, 8, 0, 67, true, 'paypal');
 		
 		//images
         $c->add('fs_images', NULL, 'fieldset', 1, 9, NULL, 0, true, 'paypal');
@@ -259,7 +285,7 @@ function plugin_initconfig_paypal()
 				'text', 1, 9, 0, 11, true, 'paypal');
 		$c->add('maxPerPage', $_PAY_DEFAULT['maxPerPage'],
                 'text', 1, 9, 0, 20, true, 'paypal');
-		$c->add('categoryHeading', $LANG_PAYPAL_1['category_heading'],
+		$c->add('categoryHeading', $_PAY_DEFAULT['categoryHeading'],
                 'text', 1, 9, 0, 21, true, 'paypal');
 		$c->add('categoryColumns', $_PAY_DEFAULT['categoryColumns'],
                 'text', 1, 9, 0, 22, true, 'paypal');
@@ -298,7 +324,7 @@ function plugin_initconfig_paypal()
 		
     }				
 
-    return true;
+    return PAYPAL_applyConfigTabs();
 }
 
 ?>

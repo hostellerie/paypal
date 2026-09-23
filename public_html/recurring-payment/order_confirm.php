@@ -1,116 +1,164 @@
 <?php
-// +--------------------------------------------------------------------------+
-// | PayPal Plugin 1.6 - geeklog CMS                                          |
-// +--------------------------------------------------------------------------+
-// | order_confirm.php                                                        |
-// +--------------------------------------------------------------------------+
-// |                                                                          |
-// | Copyright (C) 2014 by the following authors:                             |
-// |                                                                          |
-// | Authors: Ben     -    ben AT geeklog DOT fr                              |
-// +--------------------------------------------------------------------------+
-// |                                                                          |
-// | This program is free software; you can redistribute it and/or            |
-// | modify it under the terms of the GNU General Public License              |
-// | as published by the Free Software Foundation; either version 2           |
-// | of the License, or (at your option) any later version.                   |
-// |                                                                          |
-// | This program is distributed in the hope that it will be useful,          |
-// | but WITHOUT ANY WARRANTY; without even the implied warranty of           |
-// | MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the            |
-// | GNU General Public License for more details.                             |
-// |                                                                          |
-// | You should have received a copy of the GNU General Public License        |
-// | along with this program; if not, write to the Free Software Foundation,  |
-// | Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.          |
-// |                                                                          |
-// +--------------------------------------------------------------------------+
 
-/**
- * require core geeklog code
- */
 require_once '../../lib-common.php';
 
-// take user back to the homepage if the plugin is not active
-if (!in_array('paypal', $_PLUGINS) ) {
-    $display .= COM_refresh($_CONF['site_url'] . '/index.php');
+if (!in_array('paypal', $_PLUGINS)) {
+    echo COM_refresh($_CONF['site_url'] . '/index.php');
     exit;
 }
 
-/* Ensure sufficient privs to read this page */
 paypal_access_check('paypal.user');
 
-$vars = array('msg' => 'text',
-              'pid' => 'number',
-              );
-paypal_filterVars($vars, $_REQUEST);
+$display = paypal_user_menu();
 
-
-
-//Main
-
-$display .= PAYPAL_siteHeader();
-$display .= paypal_user_menu();
-
-require_once ($_CONF['path'] . 'plugins/paypal/proversion/paypalfunctions.php');
-	
-$finalPaymentAmount =  $_SESSION["Payment_Amount"];
-
-/*
-'------------------------------------
-' Calls the DoExpressCheckoutPayment API call
-'-------------------------------------------------
-*/
-if ( $finalPaymentAmount > 0 ) {
-
-	$resArray1 = ConfirmPayment ( $finalPaymentAmount );
-
-	$ack = strtoupper($resArray1["ACK"]); 
-
-	if( $ack == "SUCCESS" || $ack == "SUCCESSWITHWARNING" ) {
-		$items[1] = $_SESSION["item_id"];
-		$quantities[1] = 1;
-		$item_price[1] = $_SESSION["Payment_Amount"];
-		$name[1] = $_SESSION["BILLINGDESCRIPTION"];
-		$display .= PAYPAL_handlePurchase($items, $quantities, $data, $name, $item_price,1,'complete',0,'','',$resArray1["PAYMENTINFO_0_TRANSACTIONTYPE"],$resArray1["PAYMENTINFO_0_PAYMENTTYPE"]);
-		
-		// Add user to group
-		PAYPAL_addToGroup ($_SESSION["group_id"], $_USER['uid']);
-	}
+if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !SEC_checkToken()) {
+    $display .= COM_showMessageText($LANG_PAYPAL_1['access_denied'], $LANG_PAYPAL_1['error']);
+    COM_output(PAYPAL_createHTMLDocument($display));
+    exit;
 }
 
-$resArray = CreateRecurringPaymentsProfile();
-$ack = strtoupper($resArray["ACK"]);
+require_once $_CONF['path'] . 'plugins/paypal/lib/paypal_nvp.php';
 
-if( $ack == "SUCCESS" || $ack == "SUCCESSWITHWARNING" )
-{
-	//Record profileid : ActiveProfile, PendingProfile, ExpiredProfile, SuspendedProfile, CancelledProfile
-	$recdate = date("Y-m-d H:i:s");
-	DB_query("INSERT INTO {$_TABLES['paypal_recurrent']} SET profileid='{$resArray['PROFILEID']}', recdate='{$recdate}', status ='{$resArray['PROFILESTATUS']}', user_id = '{$_USER['uid']}', product_id = '{$_SESSION['item_id']}', group_id = '{$_SESSION["group_id"]}' ");
-	
-	$display .= "<p>{$LANG_PAYPAL_1['recurrent_has_been_set']} {$LANG_PAYPAL_1['will_pay']} <span style=\"border: 1px solid #DDD; background:#EEE; padding:5px;\">{$_SESSION["currencyCodeType"]} {$_SESSION["BILLINGAMT"]}</span> {$LANG_PAYPAL_1['every']} <span style=\"border: 1px solid #DDD; background:#EEE; padding:5px;\">{$_SESSION["BILLINGFREQUENCY"]} {$_SESSION["BILLINGPERIOD"]}</span></p>";
-	
-	if ( $finalPaymentAmount = 0 )PAYPAL_addToGroup ($_SESSION["group_id"], $_USER['uid']);
-}
-else  
-{
-	//Display a user friendly Error on the page using any of the following error information returned by PayPal
-	$ErrorCode = urldecode($resArray["L_ERRORCODE0"]);
-	$ErrorShortMsg = urldecode($resArray["L_SHORTMESSAGE0"]);
-	$ErrorLongMsg = urldecode($resArray["L_LONGMESSAGE0"]);
-	$ErrorSeverityCode = urldecode($resArray["L_SEVERITYCODE0"]);
-	
-	$display .= "<p>GetExpressCheckoutDetails API call failed.";
-	$display .= "</p><p>Detailed Error Message: " . $ErrorLongMsg;
-	$display .= "</p><p>Short Error Message: " . $ErrorShortMsg;
-	$display .= "</p><p>Error Code: " . $ErrorCode;
-	$display .= "</p><p>Error Severity Code: " . $ErrorSeverityCode . '</p>';
+$itemId = (int) PAYPAL_NVP_session('item_id', 0);
+$payerId = PAYPAL_NVP_session('payer_id');
+$token = PAYPAL_NVP_session('TOKEN');
+
+if ($itemId <= 0 || $payerId === '' || $token === '') {
+    $display .= COM_showMessageText($LANG_PAYPAL_1['save_fail'], $LANG_PAYPAL_1['error']);
+    COM_output(PAYPAL_createHTMLDocument($display));
+    exit;
 }
 
+$res = DB_query(
+    "SELECT * FROM {$_TABLES['paypal_products']} "
+    . "WHERE id = {$itemId} LIMIT 1"
+);
+$product = DB_fetchArray($res);
 
+if (!is_array($product)
+    || empty($product['id'])
+    || $product['type'] !== 'recurrent'
+    || (int) $product['active'] !== 1
+    || SEC_hasAccess2($product) < 2
+    || !PAYPAL_prepareRecurringSession($product, $_USER['uid'])) {
+    $display .= COM_showMessageText($LANG_PAYPAL_1['wrong_type'], $LANG_PAYPAL_1['error']);
+    COM_output(PAYPAL_createHTMLDocument($display));
+    exit;
+}
 
-$display .= PAYPAL_siteFooter();
+$initialAmount = (float) PAYPAL_NVP_session('Payment_Amount', 0);
+$groupId = (int) PAYPAL_NVP_session('group_id', 0);
+$currencyCode = PAYPAL_NVP_session('currencyCodeType');
+$billingAmount = PAYPAL_NVP_session('BILLINGAMT');
+$billingFrequency = (int) PAYPAL_NVP_session('BILLINGFREQUENCY', 0);
+$billingPeriod = PAYPAL_NVP_session('BILLINGPERIOD');
 
-COM_output($display);
-		
-?>
+$initialTransactionId = '';
+
+if ($initialAmount > 0) {
+    $paymentResponse = ConfirmPayment($initialAmount);
+    $paymentAck = strtoupper(PAYPAL_NVP_responseValue($paymentResponse, 'ACK'));
+
+    if ($paymentAck !== 'SUCCESS' && $paymentAck !== 'SUCCESSWITHWARNING') {
+        $error = PAYPAL_NVP_responseValue(
+            $paymentResponse,
+            'L_LONGMESSAGE0',
+            $LANG_PAYPAL_1['save_fail']
+        );
+        $display .= COM_showMessageText(
+            htmlspecialchars((string) $error, ENT_QUOTES, 'UTF-8'),
+            $LANG_PAYPAL_1['error']
+        );
+        COM_output(PAYPAL_createHTMLDocument($display));
+        exit;
+    }
+
+    $initialTransactionId = PAYPAL_NVP_responseValue(
+        $paymentResponse,
+        'PAYMENTINFO_0_TRANSACTIONID'
+    );
+
+    if ($initialTransactionId !== ''
+        && DB_count($_TABLES['paypal_purchases'], 'txn_id', $initialTransactionId) == 0) {
+        $items = array(1 => $itemId);
+        $quantities = array(1 => 1);
+        $prices = array(1 => number_format($initialAmount, 2, '.', ''));
+        $names = array(1 => $product['name']);
+
+        PAYPAL_handlePurchase(
+            $items,
+            $quantities,
+            array(),
+            $names,
+            $prices,
+            0,
+            'complete',
+            (int) $_USER['uid'],
+            $initialTransactionId,
+            date('Y-m-d H:i:s'),
+            PAYPAL_NVP_responseValue($paymentResponse, 'PAYMENTINFO_0_TRANSACTIONTYPE', 'express_checkout'),
+            PAYPAL_NVP_responseValue($paymentResponse, 'PAYMENTINFO_0_PAYMENTTYPE', 'instant')
+        );
+    }
+}
+
+$profileResponse = CreateRecurringPaymentsProfile();
+$profileAck = strtoupper(PAYPAL_NVP_responseValue($profileResponse, 'ACK'));
+
+if ($profileAck !== 'SUCCESS' && $profileAck !== 'SUCCESSWITHWARNING') {
+    $error = PAYPAL_NVP_responseValue(
+        $profileResponse,
+        'L_LONGMESSAGE0',
+        $LANG_PAYPAL_1['save_fail']
+    );
+    $display .= COM_showMessageText(
+        htmlspecialchars((string) $error, ENT_QUOTES, 'UTF-8'),
+        $LANG_PAYPAL_1['error']
+    );
+    COM_output(PAYPAL_createHTMLDocument($display));
+    exit;
+}
+
+$profileId = PAYPAL_NVP_responseValue($profileResponse, 'PROFILEID');
+$profileStatus = PAYPAL_NVP_responseValue($profileResponse, 'PROFILESTATUS', 'ActiveProfile');
+
+if ($profileId === '') {
+    $display .= COM_showMessageText($LANG_PAYPAL_1['save_fail'], $LANG_PAYPAL_1['error']);
+    COM_output(PAYPAL_createHTMLDocument($display));
+    exit;
+}
+
+$safeProfileId = DB_escapeString($profileId);
+if (DB_count($_TABLES['paypal_recurrent'], 'profileid', $profileId) == 0) {
+    $safeStatus = DB_escapeString($profileStatus);
+    DB_query(
+        "INSERT INTO {$_TABLES['paypal_recurrent']} "
+        . "SET profileid='{$safeProfileId}', recdate=NOW(), "
+        . "status='{$safeStatus}', user_id=" . (int) $_USER['uid'] . ", "
+        . "product_id={$itemId}, group_id={$groupId}"
+    );
+}
+
+if ($groupId > 0) {
+    PAYPAL_addToGroup($groupId, $_USER['uid']);
+}
+
+$display .= '<p>' . $LANG_PAYPAL_1['recurrent_has_been_set'] . ' '
+    . $LANG_PAYPAL_1['will_pay'] . ' <strong>'
+    . htmlspecialchars((string) $currencyCode, ENT_QUOTES, 'UTF-8') . ' '
+    . htmlspecialchars((string) $billingAmount, ENT_QUOTES, 'UTF-8')
+    . '</strong> ' . $LANG_PAYPAL_1['every'] . ' <strong>'
+    . $billingFrequency . ' '
+    . htmlspecialchars((string) $billingPeriod, ENT_QUOTES, 'UTF-8')
+    . '</strong></p>';
+
+// Prevent an accidental refresh from repeating the final step.
+unset(
+    $_SESSION['TOKEN'],
+    $_SESSION['payer_id'],
+    $_SESSION['Payment_Amount'],
+    $_SESSION['item_id'],
+    $_SESSION['group_id']
+);
+
+COM_output(PAYPAL_createHTMLDocument($display));

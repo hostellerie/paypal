@@ -1,12 +1,10 @@
 {# begin {templatelocation} #}
-
 <div class="button_buy_now">
- <form action="{buy_now_url}" method="post">
-  <input type="hidden" name="item_number" value="{id}" />
-  <input type="hidden" name="amount" value="{price2}" />
-  <input type="hidden" name="item_weight" value="{item_weight}" />
-  <input type="submit" value="{buy_now_button}" name="submit" />
- </form>
+  <form action="{buy_now_url}" method="post">
+    <input type="hidden" name="item_number" value="{id}">
+    <input type="hidden" name="amount" value="{price2}">
+    <input type="hidden" name="item_weight" value="{item_weight}">
+    <button type="submit" name="submit">{buy_now_button}</button>
+  </form>
 </div>
-
 {# end {templatelocation} #}

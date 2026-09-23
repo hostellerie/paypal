@@ -50,10 +50,12 @@ require_once('../../../lib-common.php');
 paypal_access_check('paypal.admin');
 
 // Incoming variable filter
-$vars = array('txn_id' => 'alpha',
-			  'msg' => 'text',
-			  'mode'   => 'alpha'
-			);
+$vars = array(
+    'txn_id' => 'alpha',
+    'msg' => 'text',
+    'mode' => 'alpha',
+    'period' => 'alpha',
+);
 paypal_filterVars($vars, $_REQUEST);
 
 /**
@@ -68,9 +70,10 @@ function PAYPAL_listTransactions()
 
     $retval = '';
 
-	if (DB_count($_TABLES['paypal_ipnlog']) == 0){
-	    $retval .= '<p>' . $LANG_PAYPAL_1['ipnlog_empty'] . '</p>';
-	}
+    if (DB_count($_TABLES['paypal_ipnlog']) == 0) {
+        return '<p>' . $LANG_PAYPAL_1['ipnlog_empty'] . '</p>';
+    }
+
     // Todo make mc_gross sortable (need a new field in paypal_purchases table
     $header_arr = array(      // display 'text' and use table field 'field'
         array('text' => $LANG_PAYPAL_1['date_time'], 'field' => 'time', 'sort' => true),
@@ -135,79 +138,141 @@ function PAYPAL_listTransactions()
 function PAYPAL_getListField_paypal_transactions($fieldname, $fieldvalue, $A, $icon_arr)
 {
     global $_CONF, $_PAY_CONF, $LANG_PAYPAL_1;
-	
-	$out = preg_replace('!s:(\d+):"(.*?)";!se', "'s:'.strlen('$2').':\"$2\";'", $A['ipn_data'] ); 
-    $ipn = unserialize($out);
-	if (!is_array($ipn)) {
+
+    $serialized = isset($A['ipn_data']) ? $A['ipn_data'] : '';
+    $out = preg_replace_callback(
+        '!s:(\\d+):"(.*?)";!s',
+        function ($matches) {
+            return 's:' . strlen($matches[2]) . ':"' . $matches[2] . '";';
+        },
+        $serialized
+    );
+
+    $ipn = @unserialize($out);
+    if (!is_array($ipn)) {
         $ipn = array();
     }
 
-    switch($fieldname) {
-        case "id":
-            $retval = $A['id'];
-            break;
-		case "user_id":
-            
-			if ($A['user_id'] >= 2) {
-			    $retval = '<a href="' . $_CONF['site_url'] . '/users.php?mode=profile&uid=' . $A['user_id'] . '">' . $A['username'] .'</a>';
-			} else {
-			    $retval = $A['username'];
-			}
-			
-			if ($ipn['address_name'] != '') {
-			    $retval .= ' | ' . $ipn['address_name'];
-			} else if ($ipn['first_name'] != '' || $ipn['last_name'] != ''){
-			    $retval .= ' | ' . $ipn['first_name'] . ' ' . $ipn['last_name'];
-            }			
-            break;
-		case "time":
-            $date = COM_getUserDateTimeFormat($A['time']);
-			$retval = $date[0];
-            break;
-		case "txnid":
-            $retval = '<a href="' . $_CONF['site_url'] . '/admin/plugins/paypal/ipnlog.php?view=ipnlog&op=single&txn_id=' . $fieldvalue . '">' . $fieldvalue . '</a>';
-            break;
-		case "status":
-            if ($A['status'] == 'pending') {
-			    $retval = '<a href="' . $_PAY_CONF['site_url'] . '/transaction.php?type=purchase&amp;id=' .
-				$A['id'] . '" title="'. $LANG_PAYPAL_1['see_transaction'] . '">' . $LANG_PAYPAL_1[$A['status']] .'</a>';
-			} else {
-    			$retval =  $LANG_PAYPAL_1[$A['status']];
-			}
-			break;
-		case "mc_gross":
-		    if ($ipn['mc_gross'] == 0 || $ipn['mc_gross'] == '') {
-			    $retval = '<div style="text-align:right;">' . number_format($ipn['mc_gross'], $_CONF['decimal_count'], $_CONF['decimal_separator'], $_CONF['thousand_separator']) . '</div>';
-			} else {
-    			$retval = '<div style="text-align:right;"><a href="' . $_PAY_CONF['site_url'] . '/transaction.php?type=purchase&amp;id=' . $A['id'] . '" title="'. $LANG_PAYPAL_1['see_transaction'] . '">' . number_format($ipn['mc_gross'], $_CONF['decimal_count'], $_CONF['decimal_separator'], $_CONF['thousand_separator']) .'</a></div>';
-			}
+    $addressName = isset($ipn['address_name']) ? $ipn['address_name'] : '';
+    $firstName = isset($ipn['first_name']) ? $ipn['first_name'] : '';
+    $lastName = isset($ipn['last_name']) ? $ipn['last_name'] : '';
+    $gross = isset($ipn['mc_gross']) && is_numeric($ipn['mc_gross'])
+        ? (float) $ipn['mc_gross']
+        : 0.0;
 
-            $_SESSION['gross_total'] = $_SESSION['gross_total'] + $ipn['mc_gross'];
-			
-			break;
+    switch ($fieldname) {
+        case 'id':
+            $retval = isset($A['id']) ? $A['id'] : '';
+            break;
+
+        case 'user_id':
+            $userId = isset($A['user_id']) ? (int) $A['user_id'] : 0;
+            $username = isset($A['username']) ? $A['username'] : '';
+
+            if ($userId >= 2) {
+                $retval = '<a href="' . $_CONF['site_url'] . '/users.php?mode=profile&amp;uid='
+                    . $userId . '">' . htmlspecialchars($username, ENT_QUOTES, 'UTF-8') . '</a>';
+            } else {
+                $retval = htmlspecialchars($username, ENT_QUOTES, 'UTF-8');
+            }
+
+            if ($addressName !== '') {
+                $retval .= ' | ' . htmlspecialchars($addressName, ENT_QUOTES, 'UTF-8');
+            } elseif ($firstName !== '' || $lastName !== '') {
+                $retval .= ' | ' . htmlspecialchars(trim($firstName . ' ' . $lastName), ENT_QUOTES, 'UTF-8');
+            }
+            break;
+
+        case 'time':
+            if (!empty($A['time'])) {
+                $date = COM_getUserDateTimeFormat($A['time']);
+                $retval = $date[0];
+            } else {
+                $retval = '';
+            }
+            break;
+
+        case 'txnid':
+            $txnId = (string) $fieldvalue;
+            $retval = '<a href="' . $_CONF['site_admin_url']
+                . '/plugins/paypal/ipnlog.php?view=ipnlog&amp;op=single&amp;txn_id='
+                . rawurlencode($txnId) . '">' . htmlspecialchars($txnId, ENT_QUOTES, 'UTF-8') . '</a>';
+            break;
+
+        case 'status':
+            $status = isset($A['status']) ? $A['status'] : '';
+            $statusLabel = isset($LANG_PAYPAL_1[$status]) ? $LANG_PAYPAL_1[$status] : $status;
+
+            if ($status === 'pending' && !empty($A['id'])) {
+                $retval = '<a href="' . $_PAY_CONF['site_url']
+                    . '/transaction.php?type=purchase&amp;id=' . (int) $A['id']
+                    . '" title="' . $LANG_PAYPAL_1['see_transaction'] . '">'
+                    . htmlspecialchars($statusLabel, ENT_QUOTES, 'UTF-8') . '</a>';
+            } else {
+                $retval = htmlspecialchars($statusLabel, ENT_QUOTES, 'UTF-8');
+            }
+            break;
+
+        case 'mc_gross':
+            $formattedGross = number_format(
+                $gross,
+                $_CONF['decimal_count'],
+                $_CONF['decimal_separator'],
+                $_CONF['thousand_separator']
+            );
+
+            if ($gross != 0.0 && !empty($A['id'])) {
+                $retval = '<div style="text-align:right;"><a href="' . $_PAY_CONF['site_url']
+                    . '/transaction.php?type=purchase&amp;id=' . (int) $A['id']
+                    . '" title="' . $LANG_PAYPAL_1['see_transaction'] . '">'
+                    . $formattedGross . '</a></div>';
+            } else {
+                $retval = '<div style="text-align:right;">' . $formattedGross . '</div>';
+            }
+
+            $_SESSION['gross_total'] = (isset($_SESSION['gross_total'])
+                ? (float) $_SESSION['gross_total']
+                : 0.0) + $gross;
+            break;
 
         default:
-            $retval = stripslashes($fieldvalue);
+            $retval = stripslashes((string) $fieldvalue);
             break;
     }
+
     return $retval;
 }
 
-if ($_REQUEST['mode'] == 'edit') {
-	//update ipn
-	$sql = "SELECT * FROM {$_TABLES['paypal_ipnlog']} WHERE txn_id = '{$_REQUEST['txn_id']}'";
+$paypalMode = isset($_POST['mode']) ? COM_applyFilter($_POST['mode']) : '';
+if ($paypalMode == 'edit' && SEC_checkToken()) {
+    // Update a manually pending transaction only.
+    $paypalTxnId = isset($_POST['txn_id']) ? COM_applyFilter($_POST['txn_id']) : '';
+    $paypalTxnSql = DB_escapeString($paypalTxnId);
+	$sql = "SELECT * FROM {$_TABLES['paypal_ipnlog']} WHERE txn_id = '{$paypalTxnSql}'";
 	$res = DB_query($sql);
 	$A = DB_fetchArray($res);
+    if (!is_array($A)) {
+        $A = array();
+    }
 
 	// Allow all serialized data to be available to the template
-	$ipn ='';
-	if ($A['ipn_data'] != '') {
-		$out = preg_replace('!s:(\d+):"(.*?)";!se', "'s:'.strlen('$2').':\"$2\";'", $A['ipn_data'] ); 
-		$ipn = unserialize($out);
+	$ipn = array();
+	if (!empty($A['ipn_data'])) {
+        $out = preg_replace_callback(
+            '!s:(\\d+):"(.*?)";!s',
+            function ($matches) {
+                return 's:' . strlen($matches[2]) . ':"' . $matches[2] . '";';
+            },
+            $A['ipn_data']
+        );
+		$ipn = @unserialize($out);
 	}
-	if ($ipn['payment_status'] != 'pending') break;
-	
-	if ($ipn['quantity1'] != '') {
+    $paypalPendingTransaction = is_array($ipn)
+        && isset($ipn['payment_status'])
+        && $ipn['payment_status'] == 'pending';
+
+    if ($paypalPendingTransaction) {
+	if (isset($ipn['quantity1']) && $ipn['quantity1'] != '') {
 	    //multi products
 		$i = 1;
 		for (; ; ) {
@@ -251,9 +316,12 @@ if ($_REQUEST['mode'] == 'edit') {
 	    $sql = "SELECT * FROM {$_TABLES['paypal_products']} WHERE id = '{$ipn['item_number']}'";
 		$res = DB_query($sql);
 		$product = DB_fetchArray($res);
+        if (!is_array($product)) {
+            $product = array();
+        }
 		
 		//product is downloadable give access to product
-		if ($product['product_type'] == 1) $files[] = $_PAY_CONF['download_path'] . $product['file'];
+		if (isset($product['product_type']) && $product['product_type'] == 1 && !empty($product['file'])) $files[] = $_PAY_CONF['download_path'] . $product['file'];
 		$names[] = $ipn['quantity'] . ' x ' . $ipn['item_name'] . ' | ' .  ($ipn['mc_gross']/$ipn['quantity']) . ' ' . $_PAY_CONF['currency'];
 
 		$sql = "UPDATE {$_TABLES['paypal_purchases']} SET purchase_date = NOW()";
@@ -282,16 +350,21 @@ if ($_REQUEST['mode'] == 'edit') {
 	$ipn['payment_status'] = 'complete';
 	$ipn['payment_date'] = date('H:i:s M d, Y T'); //13:49:40 Jul 06, 2011 PDT
 	$sql = "UPDATE {$_TABLES['paypal_ipnlog']} SET ipn_data='" . serialize($ipn) . "' "
-					 . "WHERE txn_id = '{$_REQUEST['txn_id']}'";
+					 . "WHERE txn_id = '{$paypalTxnSql}'";
 	DB_query($sql);
 	
 	//update purchase
 	$sql = "UPDATE {$_TABLES['paypal_purchases']} SET status='complete' "
-			. " WHERE txn_id = '{$_REQUEST['txn_id']}'";
+			. " WHERE txn_id = '{$paypalTxnSql}'";
 	DB_query($sql);
 	
-	// Send the purchaser a confirmation email (if set to do so in config.php)
-	if ($_PAY_CONF['purchase_email_user'] ) {
+    // Build the message once and honor user/anonymous delivery settings.
+    $purchaseUserId = isset($ipn['custom']) ? (int) $ipn['custom'] : 1;
+    $isAnonymousPurchase = ($purchaseUserId === 1);
+    $sendPurchaserEmail = $isAnonymousPurchase
+        ? !empty($_PAY_CONF['purchase_email_anon'])
+        : !empty($_PAY_CONF['purchase_email_user']);
+
 		// setup templates
 		$message = COM_newTemplate($_CONF['path'] . 'plugins/paypal/templates/email');
 		$message->set_file(array('subject' => 'purchase_by_check_complete_subject.thtml',
@@ -303,6 +376,7 @@ if ($_REQUEST['mode'] == 'edit') {
 		$message->set_var('purchase_receipt', $LANG_PAYPAL_EMAIL['purchase_receipt']);
 
 		// list of product names
+        $products = '';
 		for ($i2 = 0; $i2 < ($i-1); $i2++) {
 		    $products .= '<p>' . $names[$i2] . '</p>';
 		}
@@ -321,43 +395,60 @@ if ($_REQUEST['mode'] == 'edit') {
 		
 		$subject = trim($message->parse('output', 'subject'));
 
-		// if specified to mail attachment, do so, otherwise skip attachment
-		if ( (( is_numeric((int)$ipn['custom']) && (int)$ipn['custom'] != 1 &&
-				$_PAY_CONF['purchase_email_user_attach'] ) ||
-			  ( (!is_numeric((int)$ipn['custom']) || (int)$ipn['custom'] == 1) &&
-				$_PAY_CONF['purchase_email_anon_attach'] )) &&
-			  count($files) > 0  ) {
-			$message->set_var('attached_files', $LANG_PAYPAL_EMAIL['attached_files']);
-			$text = $message->parse('output', 'message');
-			paypal_mailAttachment($ipn['payer_email'], $subject, $text, $files,
-								  $_PAY_CONF['receiverEmailAddr']);
-		} else {
-			$message->set_var('attached_files', $LANG_PAYPAL_EMAIL['download_files']);
-			$text = $message->parse('output', 'message');
-			COM_mail($ipn['payer_email'], $subject, $text,
-					 $_PAY_CONF['receiverEmailAddr'], true);
-		}
-		if ($_PAY_CONF['debug']) COM_errorLog('Email was sent');
-	}
+        // Attach purchased files only when both the purchaser email and the
+        // matching attachment setting are enabled.
+        $attachFiles = (
+            (!$isAnonymousPurchase && !empty($_PAY_CONF['purchase_email_user_attach']))
+            || ($isAnonymousPurchase && !empty($_PAY_CONF['purchase_email_anon_attach']))
+        ) && count($files) > 0;
+
+        $message->set_var(
+            'attached_files',
+            $attachFiles ? $LANG_PAYPAL_EMAIL['attached_files'] : $LANG_PAYPAL_EMAIL['download_files']
+        );
+        $text = $message->parse('output', 'message');
+
+        if ($sendPurchaserEmail && !empty($ipn['payer_email'])) {
+            if ($attachFiles) {
+                paypal_mailAttachment(
+                    $ipn['payer_email'],
+                    $subject,
+                    $text,
+                    $files,
+                    $_PAY_CONF['receiverEmailAddr']
+                );
+            } else {
+                COM_mail(
+                    $ipn['payer_email'],
+                    $subject,
+                    $text,
+                    $_PAY_CONF['receiverEmailAddr'],
+                    true
+                );
+            }
+
+            if ($_PAY_CONF['debug']) {
+                COM_errorLog('Email was sent to ' . $ipn['payer_email']);
+            }
+        }
+
 	//Send email to receiver
 	COM_mail($_PAY_CONF['receiverEmailAddr'], $subject, $subject . ' >> ' . $text, '', true);
 	$_REQUEST['msg'] = $LANG_PAYPAL_1['order_validated'];
+    }
 }
 
 //Main
 
-$display = COM_siteHeader('none');
-$display .= paypal_admin_menu();
+$display = paypal_admin_menu();
 
 $display .= COM_startBlock($LANG_PAYPAL_1['sales_history']);
 
 if (!empty($_REQUEST['msg'])) $display .= COM_showMessageText( stripslashes($_REQUEST['msg']), $LANG_PAYPAL_1['message']);
 			
-if(function_exists('PAYPAL_plot')) $display .= PAYPAL_plot();
+$display .= PAYPAL_plot(isset($_REQUEST['period']) ? $_REQUEST['period'] : '12m');
 $display .= PAYPAL_listTransactions();
 $display .= COM_endBlock();
 
-$display .= COM_siteFooter();
-
-COM_output($display);
+COM_output(PAYPAL_createHTMLDocument($display, $LANG_PAYPAL_1['sales_history']));
 ?>

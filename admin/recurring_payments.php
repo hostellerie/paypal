@@ -48,9 +48,7 @@ paypal_filterVars($vars, $_REQUEST);
 
 function PAYPAL_listRecurringPayments()
 {
-    global $_CONF, $_TABLES, $LANG_PAYPAL_ADMIN, $LANG_ADMIN, $LANG_PAYPAL_1, $LANG_PAYPAL_PRO;
-
-	if(!file_exists($_CONF['path_data'] . '/paypal_data/proversion/proversion.php')) return $LANG_PAYPAL_PRO['pro_feature'];
+    global $_CONF, $_TABLES, $LANG_PAYPAL_ADMIN, $LANG_ADMIN, $LANG_PAYPAL_1;
 	
     require_once $_CONF['path_system'] . 'lib-admin.php';
 
@@ -117,8 +115,7 @@ function PAYPAL_getListField_paypal_recurring($fieldname, $fieldvalue, $A, $icon
 
 //Main
 
-$display = COM_siteHeader('none');
-$display .= paypal_admin_menu();
+$display = paypal_admin_menu();
 
 if (!empty($_REQUEST['msg'])) $display .= COM_showMessageText( stripslashes($_REQUEST['msg']), $LANG_PAYPAL_1['message']);
 
@@ -131,11 +128,9 @@ switch ($_REQUEST['mode']) {
         $display .= COM_endBlock();
 	}
 
-$display .= COM_siteFooter();
-
 //For testing 
 //plugin_runScheduledTask_paypal();
 
-COM_output($display);
+COM_output(PAYPAL_createHTMLDocument($display, $LANG_PAYPAL_1['recurring_list']));
 
 ?>

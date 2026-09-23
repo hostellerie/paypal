@@ -72,121 +72,81 @@ class BaseIPN {
      * @param array $in Array containing POST variables of transaction
      * @return boolean true if result successfully validated, false otherwise
      */
-    function Verify($in) 
-	{
-        global $_CONF, $_PAY_CONF;
+    function Verify($in)
+    {
+        global $_PAY_CONF;
 
-		// CONFIG: Enable debug mode. This means we'll log requests into 'error.log'
-		// Especially useful if you encounter network errors or other intermittent problems with IPN (validation).
-		
-		if(DEBUG) COM_errorLog("PAYPAL-IPN: Verify starts");
+        if (DEBUG) {
+            COM_errorLog('PAYPAL-IPN: verification start');
+        }
 
-		// Read POST data
-		// reading posted data directly from $_POST causes serialization
-		// issues with array data in POST. Reading raw POST data from input stream instead.
+        $rawPostData = file_get_contents('php://input');
+        if (!is_string($rawPostData) || $rawPostData === '') {
+            if (DEBUG) {
+                COM_errorLog('PAYPAL-IPN: empty request body');
+            }
+            return false;
+        }
 
-		$raw_post_data = file_get_contents('php://input');
-		$raw_post_array = explode('&', $raw_post_data);
-		$myPost = array();
-		foreach ($raw_post_array as $keyval) {
-				$keyval = explode ('=', $keyval);
-				if (count($keyval) == 2)
-						$myPost[$keyval[0]] = urldecode($keyval[1]);
-		}
-		// read the post from PayPal system and add 'cmd'
-		$req = 'cmd=_notify-validate';
-		if(function_exists('get_magic_quotes_gpc')) {
-				$get_magic_quotes_exists = true;
-				if(DEBUG) COM_errorLog("PAYPAL-IPN: get_magic_quotes_gpc exists");
-		}
-		foreach ($myPost as $key => $value) {
-				if($get_magic_quotes_exists == true && get_magic_quotes_gpc() == 1) {
-						$value = urlencode(stripslashes($value));
-				} else {
-						$value = urlencode($value);
-				}
-				$req .= "&$key=$value";
-		}
+        $sandbox = isset($_PAY_CONF['paypalURL'])
+            && stripos((string) $_PAY_CONF['paypalURL'], 'sandbox') !== false;
 
-		// Post IPN data back to PayPal to validate the IPN data is genuine
-		// Without this step anyone can fake IPN data
+        $paypalUrl = $sandbox
+            ? 'https://ipnpb.sandbox.paypal.com/cgi-bin/webscr'
+            : 'https://ipnpb.paypal.com/cgi-bin/webscr';
 
-		$paypal_url = "https://" . $_PAY_CONF['paypalURL'] . "/cgi-bin/webscr";
-		if(DEBUG) COM_errorLog("PAYPAL-IPN: $paypal_url");
+        $requestBody = 'cmd=_notify-validate&' . $rawPostData;
 
-		$ch = curl_init($paypal_url);
-		if ($ch == FALSE) {
-				COM_errorLog("PAYPAL-IPN: IPN result -- Curl init failed");
-				return FALSE;
-		}
+        $ch = curl_init($paypalUrl);
+        if ($ch === false) {
+            COM_errorLog('PAYPAL-IPN: cURL initialization failed');
+            return false;
+        }
 
-		curl_setopt($ch, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_1);
-		curl_setopt($ch, CURLOPT_POST, 1);
-		curl_setopt($ch, CURLOPT_RETURNTRANSFER,1);
-		curl_setopt($ch, CURLOPT_POSTFIELDS, $req);
-		curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 1);
-		curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
-		curl_setopt($ch, CURLOPT_FORBID_REUSE, 1);
+        curl_setopt($ch, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_1);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $requestBody);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
+        curl_setopt($ch, CURLOPT_FORBID_REUSE, true);
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 20);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, array(
+            'Connection: Close',
+            'User-Agent: Geeklog-PayPal/1.7.0 IPN-Verification',
+            'Content-Type: application/x-www-form-urlencoded',
+        ));
 
-		if(DEBUG) {
-				curl_setopt($ch, CURLOPT_HEADER, 1);
-				curl_setopt($ch, CURLINFO_HEADER_OUT, 1);
-		}
+        $response = curl_exec($ch);
 
-		// CONFIG: Optional proxy configuration
-		//curl_setopt($ch, CURLOPT_PROXY, $proxy);
-		//curl_setopt($ch, CURLOPT_HTTPPROXYTUNNEL, 1);
+        if ($response === false) {
+            if (DEBUG) {
+                COM_errorLog(
+                    'PAYPAL-IPN: verification request failed: ' . curl_error($ch)
+                );
+            }
+            curl_close($ch);
+            return false;
+        }
 
-		// Set TCP timeout to 30 seconds
-		curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 30);
-		curl_setopt($ch, CURLOPT_HTTPHEADER, array('Connection: Close'));
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
 
-		// CONFIG: Please download 'cacert.pem' from "http://curl.haxx.se/docs/caextract.html" and set the directory path
-		// of the certificate as shown below. Ensure the file is readable by the webserver.
-		// This is mandatory for some environments.
+        if ($httpCode !== 200) {
+            if (DEBUG) {
+                COM_errorLog('PAYPAL-IPN: verification HTTP status ' . $httpCode);
+            }
+            return false;
+        }
 
-		//$cert = __DIR__ . "./cacert.pem";
-		//curl_setopt($ch, CURLOPT_CAINFO, $cert);
+        $response = trim((string) $response);
 
-		$res = curl_exec($ch);
-		
-		if (curl_errno($ch) != 0) {
-		    // cURL error
-			if(DEBUG) COM_errorLog("PAYPAL-IPN: Can't connect to PayPal to validate IPN message: " . curl_error($ch));
-			curl_close($ch);
-			exit;
+        if (DEBUG) {
+            COM_errorLog('PAYPAL-IPN: verification response ' . $response);
+        }
 
-		} else {
-			// Log the entire HTTP response if debug is switched on.
-			if(DEBUG) {
-				COM_errorLog("PAYPAL-IPN: HTTP request of validation request:". curl_getinfo($ch, CURLINFO_HEADER_OUT) ." for IPN payload: $req");
-				COM_errorLog("PAYPAL-IPN: HTTP response of validation request: $res");
-			}
-			
-			// Inspect IPN 
-
-			if (strpos($res, "VERIFIED") !== false) {
-
-				$verified = true;
-				
-				if(DEBUG) COM_errorLog("PAYPAL-IPN: Paypal response is Verified - IPN:".  $req);
-				
-			} else if (strpos($res, "INVALID") !== false) {
-				$verified = false;
-				// log for manual investigation
-				// Add business logic here which deals with invalid IPN messages
-				if(DEBUG) COM_errorLog("PAYPAL-IPN: Paypal response is Invalid - IPN: " . $req);
-			} else {
-			   if(DEBUG) COM_errorLog("PAYPAL-IPN: Paypal headers are: " . $headers);
-			   if(DEBUG) COM_errorLog("PAYPAL-IPN: Paypal response is: " . $res);
-			}
-
-			curl_close($ch);
-		}
-        
-		if(DEBUG) COM_errorLog("PAYPAL-IPN: Verify finish");
-		
-		return $verified;
+        return $response === 'VERIFIED';
     }
 
     /**
@@ -217,25 +177,24 @@ class BaseIPN {
         }
 
         //Check if IPN already exists
-		$id = DB_getItem($_TABLES['paypal_ipnlog'], 'id', "txn_id='{$in['txn_id']}'");
+        $txnId = isset($in['txn_id']) ? (string) $in['txn_id'] : '';
+        $safeTxnId = DB_escapeString($txnId);
+		$id = DB_getItem($_TABLES['paypal_ipnlog'], 'id', "txn_id='{$safeTxnId}'");
 		
 		if ( $id == '') {
 		    // Alert admin of a possible charset issue
-			if ( $in['charset'] != '' && strtolower($in['charset']) != strtolower($_CONF['default_charset']) )  {
+            if (!empty($in['charset'])
+                && strtolower($in['charset']) != strtolower($_CONF['default_charset'])) {
 				COM_errorLog('PAYPAL: IPN Charset possible issue. Please check your settings https://www.paypal.com/ie/cgi-bin/webscr?cmd=_profile-language-encoding. Paypal charset is set to ' 
 				. $in['charset'] .  ' but your default charset is set to ' . $_CONF['default_charset']);
 			}
 		
-			// Log to database
-			$input_arr = array();
-			//grabs the $_POST variables and adds slashes
-			foreach ($in as $key => $input_arr) {
-				//$input_arr = utf8_decode($input_arr);
-				$in[$key] = addslashes($input_arr);
-			}
-			$sql = "INSERT INTO {$_TABLES['paypal_ipnlog']} SET ip_addr = '{$_SERVER['REMOTE_ADDR']}', "
-				 . "time = NOW(), verified = $verified, txn_id = '{$in['txn_id']}', "
-				 . "ipn_data = '" . serialize($in) . '\'';
+            // Log to database using escaped values without mutating the IPN payload.
+            $ipAddress = isset($_SERVER['REMOTE_ADDR']) ? DB_escapeString($_SERVER['REMOTE_ADDR']) : '';
+            $serialized = DB_escapeString(serialize($in));
+			$sql = "INSERT INTO {$_TABLES['paypal_ipnlog']} SET ip_addr = '{$ipAddress}', "
+				 . "time = NOW(), verified = " . (int) $verified . ", txn_id = '{$safeTxnId}', "
+				 . "ipn_data = '{$serialized}'";
 			
 			DB_query($sql);
 			
@@ -257,7 +216,11 @@ class BaseIPN {
         
 		global $_PAY_CONF;
 
-        if ( ($receiver_email == $_PAY_CONF['receiverEmailAddr']) || $business == $_PAY_CONF['receiverEmailAddr'] ) {
+        $expected = strtolower(trim((string) $_PAY_CONF['receiverEmailAddr']));
+        $receiver = strtolower(trim((string) $receiver_email));
+        $business = strtolower(trim((string) $business));
+
+        if ($expected !== '' && ($receiver === $expected || $business === $expected)) {
 		    if(DEBUG) COM_errorLog('PAYPAL-IPN: Email ok');
 		    return true;
 		} else {
@@ -276,6 +239,10 @@ class BaseIPN {
         global $_TABLES;
 
         // Count purchases with txn_id, if > 0
+        $txn_id = (string) $txn_id;
+        if ($txn_id === '') {
+            return false;
+        }
         $count = DB_count($_TABLES['paypal_purchases'], 'txn_id', $txn_id);
         if ($count > 0) {
 		    if(DEBUG) COM_errorLog('PAYPAL-IPN: Txn is not unique');
@@ -315,62 +282,156 @@ class BaseIPN {
      * @param string $currency Currency of funds in payment_gross
      * @return boolean true if funds are sufficient, false otherwise
      */
-    function isSufficientFunds($ids, $quantity, $payment_gross, $currency) {
-        global $_CONF, $_PAY_CONF, $_TABLES;
-		
-		$real_ids = PAYPAL_realId($ids);
-		
-		if ( empty($ids) || empty($real_ids) ) {
-		    if(DEBUG)COM_errorLog('PAYPAL-IPN: ids of the items is empty: ' . $ids . ' | ' . $real_ids);
-			return false;
-		}
-		
+    function isSufficientFunds($ids, $quantity, $payment_gross, $currency, $shippingAmount = 0.0)
+    {
+        global $_PAY_CONF, $_TABLES;
 
-        // Check currency
-        if (!(isset($_PAY_CONF['currency']) && strcasecmp($_PAY_CONF['currency'], $currency) == 0)) {
-		    if(DEBUG) COM_errorLog('PAYPAL-IPN: Currency is not ok');
+        if (!is_array($ids) || empty($ids) || !is_array($quantity)) {
             return false;
         }
 
-        // Create a list of ids from $real_ids
-        (is_array($real_ids)) ? $idlist = "'" . implode("','", $real_ids) . "'" : $idlist = "'" . $real_ids . "'";
-
-        // Create/execute query string
-		if ($idlist == '') {
-		   if(DEBUG) COM_errorLog('PAYPAL-IPN: List of ids items is empty');
-		    return false;
-		}
-        $sql = "SELECT * FROM {$_TABLES['paypal_products']} WHERE id in ($idlist)";
-        $res = DB_query($sql);
-
-        // Create a price lookup table
-		//TODO add attribute price
-        while ($A = DB_fetchArray($res)) {
-		    $price = $A['price'];
-			if ($A['discount_a'] != '' && $A['discount_a'] != 0) {
-				$price = number_format($A['price'] - $A['discount_a'], 2, '.', '');
-			}
-			if ($A['discount_p'] != '' && $A['discount_p'] != 0) {
-				$price = number_format($A['price'] - ($A['price'] * ($A['discount_p']/100)), 2, '.', '');
-			}
-            $cost[$A['id']] = $price;
-        }
-
-        // calculate the total purchase price
-        $total = 0;
-        for ($i = 0; $i < count($ids); $i++) {
-            $total += $cost[$ids[$i]] * $quantity[$i];
-        }
-
-        // Compare total price to gross payment
-        if ($total <= $payment_gross) {
-		    if(DEBUG) COM_errorLog('PAYPAL-IPN: Funds are sufficient');
-            return true;
-        } else {
-		    if(DEBUG) COM_errorLog('PAYPAL-IPN: Funds are not sufficient');
-            //Todo send a mail to admin
+        if (!isset($_PAY_CONF['currency'])
+            || strcasecmp((string) $_PAY_CONF['currency'], (string) $currency) !== 0) {
+            if (DEBUG) COM_errorLog('PAYPAL-IPN: Currency mismatch');
             return false;
         }
+
+        $expected = 0.0;
+        $shippingItems = array();
+
+        foreach ($ids as $index => $rawId) {
+            $parsed = PAYPAL_parseItemIdentifier($rawId);
+            $productId = $parsed['product_id'];
+            $qty = isset($quantity[$index]) ? (int) $quantity[$index] : 0;
+
+            if ($productId <= 0 || $qty <= 0) {
+                return false;
+            }
+
+            $res = DB_query(
+                "SELECT id, price, discount_a, discount_p, active "
+                . "FROM {$_TABLES['paypal_products']} WHERE id = " . (int) $productId
+            );
+            $product = DB_fetchArray($res);
+
+            if (!is_array($product) || empty($product['id']) || (int) $product['active'] !== 1) {
+                return false;
+            }
+
+            $unitPrice = (float) PAYPAL_productPrice($product);
+
+            if (!empty($parsed['attributes'])) {
+                $attributeIds = array_map('intval', $parsed['attributes']);
+                $idList = implode(',', $attributeIds);
+
+                $attributeResult = DB_query(
+                    "SELECT at.at_id, at.at_price "
+                    . "FROM {$_TABLES['paypal_product_attribute']} pa "
+                    . "INNER JOIN {$_TABLES['paypal_attributes']} at ON at.at_id = pa.pa_aid "
+                    . "WHERE pa.pa_pid = " . (int) $productId
+                    . " AND at.at_enabled = 1 AND at.at_id IN ({$idList})"
+                );
+
+                $validAttributes = 0;
+                while ($attribute = DB_fetchArray($attributeResult)) {
+                    $unitPrice += (float) $attribute['at_price'];
+                    ++$validAttributes;
+                }
+
+                if ($validAttributes !== count($attributeIds)) {
+                    if (DEBUG) COM_errorLog('PAYPAL-IPN: Invalid product attribute selection');
+                    return false;
+                }
+            }
+
+            $expected += $unitPrice * $qty;
+            $shippingItems[] = array('id' => $rawId, 'qty' => $qty);
+        }
+
+        $shippingAmount = round((float) $shippingAmount, 2);
+        $shippingContext = PAYPAL_getCartShippingContext($shippingItems);
+
+        if (!PAYPAL_isAllowedShippingAmount(
+            $shippingAmount,
+            $shippingContext['weight'],
+            $shippingContext['categories']
+        )) {
+            if (DEBUG) {
+                COM_errorLog('PAYPAL-IPN: Invalid shipping amount ' . $shippingAmount);
+            }
+            return false;
+        }
+
+        $expected += $shippingAmount;
+
+        // Allow only a one-cent rounding tolerance.
+        $paid = round((float) $payment_gross, 2);
+        $expected = round($expected, 2);
+
+        if (($paid + 0.01) < $expected) {
+            if (DEBUG) {
+                COM_errorLog(
+                    'PAYPAL-IPN: Insufficient funds. Expected ' . $expected
+                    . ' ' . $_PAY_CONF['currency'] . ', received ' . $paid
+                );
+            }
+            return false;
+        }
+
+        return true;
+    }
+
+    function handleReversal($in)
+    {
+        global $_TABLES;
+
+        $sourceTxnId = '';
+        if (!empty($in['parent_txn_id'])) {
+            $sourceTxnId = (string) $in['parent_txn_id'];
+        } elseif (!empty($in['txn_id'])) {
+            $sourceTxnId = (string) $in['txn_id'];
+        }
+
+        if ($sourceTxnId === '') {
+            return false;
+        }
+
+        $safeTxnId = DB_escapeString($sourceTxnId);
+        $status = strtolower(isset($in['payment_status']) ? $in['payment_status'] : 'reversed');
+        $safeStatus = DB_escapeString($status);
+
+        DB_query(
+            "UPDATE {$_TABLES['paypal_purchases']} "
+            . "SET status = '{$safeStatus}' WHERE txn_id = '{$safeTxnId}'"
+        );
+
+        $res = DB_query(
+            "SELECT id, user_id, add_to_group "
+            . "FROM {$_TABLES['paypal_subscriptions']} "
+            . "WHERE txn_id = '{$safeTxnId}'"
+        );
+
+        while ($subscription = DB_fetchArray($res)) {
+            $userId = (int) $subscription['user_id'];
+            $groupId = (int) $subscription['add_to_group'];
+
+            if ($userId > 1 && $groupId > 1) {
+                PAYPAL_removeFromGroup($groupId, $userId, 'PAYPAL - REFUND/REVERSAL');
+            }
+        }
+
+        DB_query(
+            "UPDATE {$_TABLES['paypal_subscriptions']} "
+            . "SET status = '{$safeStatus}' WHERE txn_id = '{$safeTxnId}'"
+        );
+
+        if (DEBUG) {
+            COM_errorLog(
+                'PAYPAL-IPN: transaction ' . $sourceTxnId . ' marked ' . $status
+            );
+        }
+
+        return true;
     }
 
     /**
@@ -389,11 +450,46 @@ class BaseIPN {
      * @param array $in POST variables of transaction
      * @return boolean true if processing valid and completed, false otherwise
      */
-    function Process($in) {
-	
-	    global $_PAY_CONF;
-		
-	    if(DEBUG) COM_errorLog('PAYPAL-IPN: IPN received');
+    function Process($in)
+    {
+        global $_PAY_CONF;
+
+        if (DEBUG) COM_errorLog('PAYPAL-IPN: IPN received');
+
+        if (!is_array($in)) {
+            return false;
+        }
+
+        $required = array('txn_id', 'payment_status', 'txn_type');
+        foreach ($required as $field) {
+            if (!isset($in[$field]) || trim((string) $in[$field]) === '') {
+                if (DEBUG) COM_errorLog('PAYPAL-IPN: missing required field ' . $field);
+                return false;
+            }
+        }
+
+        if (empty($in['receiver_email']) && empty($in['business'])) {
+            if (DEBUG) COM_errorLog('PAYPAL-IPN: missing receiver identity');
+            return false;
+        }
+
+        $in += array(
+            'receiver_email' => '',
+            'business' => '',
+            'mc_gross' => 0,
+            'mc_currency' => '',
+            'quantity' => 1,
+            'item_number' => '',
+            'item_name' => '',
+            'custom' => 0,
+            'mc_shipping' => 0,
+            'mc_handling' => 0,
+            'num_cart_items' => 0,
+            'exchange_rate' => 0,
+            'settle_currency' => '',
+            'settle_amount' => '',
+            'payment_gross' => isset($in['mc_gross']) ? $in['mc_gross'] : 0,
+        );
 		
         if (!$this->Verify($in)) {
             $logId = $this->Log($in, false);
@@ -403,9 +499,11 @@ class BaseIPN {
             $logId = $this->Log($in, true);
         }
 
+        if ($this->isStatusReversed($in['payment_status'])) {
+            return $this->handleReversal($in);
+        }
+
         if (!$this->isStatusCompleted($in['payment_status'])) {
-            // Not logged since this probably isn't an error
-            // $this->handleFailure(PAYPAL_FAILURE_COMPLETED, "PAYPAL-IPN: IPN($logId) Status not complete");
             return false;
         }
 
@@ -419,7 +517,7 @@ class BaseIPN {
             return false;
         }
 
-        if(DEBUG) COM_errorLog('PAYPAL-IPN: Transaction type ' . $in['txn_type']);
+        if (DEBUG) COM_errorLog('PAYPAL-IPN: Transaction type ' . $in['txn_type']);
 		
 		switch ($in['txn_type']) {
             // buy now, donate, smart logos
@@ -430,14 +528,24 @@ class BaseIPN {
                     $ids = array($in['item_number']);
                     $quantity = array($in['quantity']);
 					$name = array($in['item_name']);
-                    if (isset($in['settle_amount'])) {
-                        $payment_gross = $in['mc_gross'] * $in['exchange_rate'];
-                        $currency      = $in['settle_currency'];
+                    if ($in['settle_amount'] !== ''
+                        && (float) $in['exchange_rate'] > 0
+                        && $in['settle_currency'] !== ''
+                    ) {
+                        $payment_gross = (float) $in['mc_gross'] * (float) $in['exchange_rate'];
+                        $currency = $in['settle_currency'];
                     } else {
                         $payment_gross = $in['mc_gross'];
                         $currency      = $in['mc_currency'];
                     }
-                    if ($this->isSufficientFunds($ids, $quantity, $payment_gross, $currency)) {
+                    $shippingAmount = (float) $in['mc_shipping'] + (float) $in['mc_handling'];
+                    if ($this->isSufficientFunds(
+                        $ids,
+                        $quantity,
+                        $payment_gross,
+                        $currency,
+                        $shippingAmount
+                    )) {
                         $this->handlePurchase($ids, $quantity, $in, $name);
                     } else {
                         $this->handleFailure(PAYPAL_FAILURE_FUNDS, "($logId) Insufficient funds for purchase");
@@ -454,29 +562,70 @@ class BaseIPN {
                 $quantity = array();
                 $names = array();
                 
-				if ( $in['num_cart_items'] > 0 ) {
-					for ($i = 1; $i <= $in['num_cart_items']; $i++) {
-						if(DEBUG) COM_errorLog('PAYPAL-IPN: Cart case item: ' . $in["item_number$i"]);
-						$ids[] = $in["item_number$i"];
-						$quantity[] = $in["quantity$i"];
-						$names[] = $in["item_name$i"];
-					}
-				} else {
-				    if(DEBUG) COM_errorLog('PAYPAL-IPN: Cart case item: ' . $in['item_number1']);
-					$ids[] = $in['item_number1'];
-                    $quantity[] = $in['quantity1'];
-					$name[] = $in['item_name1'];
-				}
+                $cartItemCount = (int) $in['num_cart_items'];
+                if ($cartItemCount > 0) {
+                    for ($i = 1; $i <= $cartItemCount; $i++) {
+                        $itemNumber = isset($in["item_number{$i}"]) ? $in["item_number{$i}"] : '';
+                        $itemQuantity = isset($in["quantity{$i}"]) ? (int) $in["quantity{$i}"] : 0;
+                        $itemName = isset($in["item_name{$i}"]) ? $in["item_name{$i}"] : '';
+
+                        if ($itemNumber === '' || $itemQuantity <= 0) {
+                            $this->handleFailure(
+                                PAYPAL_FAILURE_UNKNOWN,
+                                "($logId) Incomplete cart item {$i}"
+                            );
+                            return false;
+                        }
+
+                        if (DEBUG) {
+                            COM_errorLog('PAYPAL-IPN: Cart case item: ' . $itemNumber);
+                        }
+
+                        $ids[] = $itemNumber;
+                        $quantity[] = $itemQuantity;
+                        $names[] = $itemName;
+                    }
+                } else {
+                    $itemNumber = isset($in['item_number1']) ? $in['item_number1'] : '';
+                    $itemQuantity = isset($in['quantity1']) ? (int) $in['quantity1'] : 0;
+                    $itemName = isset($in['item_name1']) ? $in['item_name1'] : '';
+
+                    if ($itemNumber === '' || $itemQuantity <= 0) {
+                        $this->handleFailure(
+                            PAYPAL_FAILURE_UNKNOWN,
+                            "($logId) Cart IPN contains no valid items"
+                        );
+                        return false;
+                    }
+
+                    if (DEBUG) {
+                        COM_errorLog('PAYPAL-IPN: Cart case item: ' . $itemNumber);
+                    }
+
+                    $ids[] = $itemNumber;
+                    $quantity[] = $itemQuantity;
+                    $names[] = $itemName;
+                }
 				
-                if (isset($in['settle_amount'])) {
-                    $payment_gross = $in['mc_gross'] * $in['exchange_rate'];
-                    $currency      = $in['settle_currency'];
+                if ($in['settle_amount'] !== ''
+                    && (float) $in['exchange_rate'] > 0
+                    && $in['settle_currency'] !== ''
+                ) {
+                    $payment_gross = (float) $in['mc_gross'] * (float) $in['exchange_rate'];
+                    $currency = $in['settle_currency'];
                 } else {
                     $payment_gross = $in['mc_gross'];
                     $currency      = $in['mc_currency'];
                 }
                 
-				if ($this->isSufficientFunds($ids, $quantity, $payment_gross, $currency)) {
+                $shippingAmount = (float) $in['mc_shipping'] + (float) $in['mc_handling'];
+				if ($this->isSufficientFunds(
+                    $ids,
+                    $quantity,
+                    $payment_gross,
+                    $currency,
+                    $shippingAmount
+                )) {
                     $this->handlePurchase($ids, $quantity, $in, $names);
                 } else {
                     $this->handleFailure(PAYPAL_FAILURE_FUNDS, "($logId) Insufficient/incorrect funds for purchase");
@@ -515,30 +664,49 @@ class BaseIPN {
         for ($i = 0; $i < count($products); $i++) {
 		    if(DEBUG) COM_errorLog('PAYPAL-IPN: Product id:' . $products[$i]);
             // grab relevant product data from product table to insert into purchase table.
-            $sql = "SELECT * FROM {$_TABLES['paypal_products']} "
-                 . "WHERE id = '{$products[$i]}'";
+            $productId = isset($products[$i]) ? (int) $products[$i] : 0;
+            if ($productId <= 0) {
+                continue;
+            }
+
+            $sql = "SELECT * FROM {$_TABLES['paypal_products']} WHERE id = {$productId}";
             $res = DB_query($sql);
             $A = DB_fetchArray($res);
-			if(DEBUG) COM_errorLog('PAYPAL-IPN: Type: ' . $A['type']);
-            if ($A['download'] > 0) {
-                $files[] = $_PAY_CONF['download_path'] . $A['file'];
+
+            if (!is_array($A) || empty($A['id'])) {
+                continue;
+            }
+
+            if ((int) $A['product_type'] === 1 && !empty($A['file'])) {
+                $files[] = $_PAY_CONF['download_path'] . basename($A['file']);
             }
 			
 			//TODO + attribute name
 			
-			// Set quantity to one if empty
-			if($quantity[$i] =='') $quantity[$i] = 1;
-			
-            $names[] = $product_name[$i] . ' x ' . $quantity[$i] ;
+            $itemQuantity = isset($quantity[$i]) ? (int) $quantity[$i] : 1;
+            if ($itemQuantity < 1) {
+                $itemQuantity = 1;
+            }
+            $quantity[$i] = $itemQuantity;
+
+            $itemName = isset($product_name[$i]) && $product_name[$i] !== ''
+                ? $product_name[$i]
+                : $A['name'];
+            $names[] = $itemName . ' x ' . $itemQuantity;
 
             // Do record anonymous users in purchase table
 			//TODO record product name + product_id with attribute
             if ( is_numeric((int)$paypal_data['custom']) && (int)$paypal_data['custom'] > 0 ) {
                 // Add the purchase to the paypal purchase table
-                $sql = "INSERT INTO {$_TABLES['paypal_purchases']} SET product_id = '{$products[$i]}', "
-                     . "quantity = '{$quantity[$i]}', user_id = '{$paypal_data['custom']}', "
-                     . "txn_id = '{$paypal_data['txn_id']}', "
-                     . 'purchase_date = NOW(), status = \'complete\'';
+                $userId = (int) $paypal_data['custom'];
+                $safeTxnId = DB_escapeString(isset($paypal_data['txn_id']) ? $paypal_data['txn_id'] : '');
+                $safeProductName = DB_escapeString($A['name']);
+
+                $sql = "INSERT INTO {$_TABLES['paypal_purchases']} SET product_id = {$productId}, "
+                     . "product_name = '{$safeProductName}', "
+                     . "quantity = {$itemQuantity}, user_id = {$userId}, "
+                     . "txn_id = '{$safeTxnId}', "
+                     . "purchase_date = NOW(), status = 'complete'";
 
                 /**
                  * @todo implemente physical item vs. download, reflected in 'status'
@@ -563,12 +731,31 @@ class BaseIPN {
 			$qty = $quantity[$i];
 			PAYPAL_stockMovement ($stock_id, $oldids[$i], -$qty);
         }
+
+        $paypal_data += array(
+            'address_name' => '',
+            'first_name' => '',
+            'last_name' => '',
+            'address_street' => '',
+            'address_zip' => '',
+            'address_city' => '',
+            'address_country' => '',
+            'payer_email' => '',
+            'payment_gross' => '',
+            'tax' => '',
+            'mc_shipping' => '',
+            'mc_handling' => '',
+            'payment_date' => '',
+        );
 		
 		// Update user details if empty user_id, user_name, user_contact, user_proid, user_street1, user_street2, user_postal, user_city, user_country, user_phone1, user_phone2, user_fax, status
 		$fields = array('user_name' => $paypal_data['address_name'], 'user_contact' => $paypal_data['first_name'] . ' ' . $paypal_data['last_name'], 'user_street1' => $paypal_data['address_street'], 'user_postal' => $paypal_data['address_zip'], 'user_city' => $paypal_data['address_city'], 'user_country' => $paypal_data['address_country']);
 		
 		if ( is_numeric((int)$paypal_data['custom']) && (int)$paypal_data['custom'] != 1 ) PAYPAL_updateUserDetails ((int)$paypal_data['custom'], $fields, true);
 		
+        $subject = '';
+        $text = '';
+
 		// Send the purchaser a confirmation email (if set to do so in config)
         if ( ( is_numeric((int)$paypal_data['custom']) && (int)$paypal_data['custom'] != 1 &&
                $_PAY_CONF['purchase_email_user'] ) ||
@@ -576,7 +763,7 @@ class BaseIPN {
                $_PAY_CONF['purchase_email_anon'] )) {
             
 			// setup templates
-            $message = new Template($_CONF['path'] . 'plugins/paypal/templates');
+            $message = COM_newTemplate($_CONF['path'] . 'plugins/paypal/templates');
             $message->set_file(array('subject' => 'purchase_email_subject.txt',
                                      'message' => 'purchase_email_message.txt' ));
             // site variables
@@ -587,6 +774,7 @@ class BaseIPN {
 			$message->set_var('purchase_receipt', $LANG_PAYPAL_EMAIL['purchase_receipt']);
 
             // list of product names
+            $li_products = '';
 			for ($i = 0; $i < count($products); $i++) {
 			$li_products .= '<li>' . $names[$i];
 			}
@@ -630,8 +818,16 @@ class BaseIPN {
             }
 			if(DEBUG) COM_errorLog('PAYPAL-IPN: Email was sent');
         }
-		//Send email to receiver
-        COM_mail($_PAY_CONF['receiverEmailAddr'], $subject, $subject . ' >> ' . $text, $_PAY_CONF['receiverEmailAddr'], true);
+        // Send the merchant copy only when a receipt was built.
+        if ($subject !== '' && $text !== '' && !empty($_PAY_CONF['receiverEmailAddr'])) {
+            COM_mail(
+                $_PAY_CONF['receiverEmailAddr'],
+                $subject,
+                $subject . ' >> ' . $text,
+                $_PAY_CONF['receiverEmailAddr'],
+                true
+            );
+        }
 
 		//Subscription
 		if ($A['type'] == 'subscription') {

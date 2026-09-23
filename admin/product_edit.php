@@ -110,10 +110,10 @@ paypal_filterVars($vars, $_REQUEST);
  */
 function PAYPAL_getProductForm($product = array(), $type = 'product') {
 
-    global $_CONF, $_PAY_CONF, $LANG_PAYPAL_1, $LANG_PAYPAL_ADMIN, $LANG_PAYPAL_PRO, $_TABLES, $LANG24, $LANG_ADMIN, $LANG_ACCESS, $_USER, $_GROUPS, $_SCRIPTS;
+    global $_CONF, $_PAY_CONF, $LANG_PAYPAL_1, $LANG_PAYPAL_ADMIN, $_TABLES, $LANG24, $LANG_ADMIN, $LANG_ACCESS, $_USER, $_GROUPS, $_SCRIPTS;
 
 	//PHP 5.4 set all $product[key] 
-	PAYPAL_setAllKeys($product, array('type', 'name', 'id', 'category', 'cat_id', 'short_description', 'description', 'item_id', 'price', 'price_ref', 'discount_a', 'discount_p', 'logged', 'hidden', 'active', 'show_in_blocks', 'customisable', 'product_type', 'file', 'weight', 'shipping_type', 'expiration', 'duration', 'duration_type', 'duration_recurrent', 'duration_type_recurrent', 'add_to_group', 'add_to_group_recurrent', 'perm_owner', 'owner_id', 'group_id', 'perm_group', 'perm_members', 'perm_anon'));
+	PAYPAL_setAllKeys($product, array('type', 'name', 'id', 'category', 'cat_id', 'short_description', 'description', 'item_id', 'price', 'price_ref', 'discount_a', 'discount_p', 'logged', 'hidden', 'active', 'show_in_blocks', 'customisable', 'product_type', 'file', 'weight', 'shipping_type', 'expiration', 'duration', 'duration_type', 'duration_recurrent', 'duration_type_recurrent', 'billingamt', 'add_to_group', 'add_to_group_recurrent', 'perm_owner', 'owner_id', 'group_id', 'perm_group', 'perm_members', 'perm_anon'));
     
 	//Validate product type
 	if ($_REQUEST['type'] == '' && $product['type'] == '') $type = 'product';
@@ -130,24 +130,37 @@ function PAYPAL_getProductForm($product = array(), $type = 'product') {
     $template = new Template($_CONF['path'] . 'plugins/paypal/templates');
     $template->set_file(array('product' => 'product_form.thtml'));
     $template->set_var('site_url', $_CONF['site_url']);
+    $template->set_var('gltoken_name', CSRF_TOKEN);
+    $template->set_var('gltoken', SEC_createToken());
 	$template->set_var('xhtml', XHTML);
     
-    if ($_CONF['advanced_editor'] == 1) {
-        $_SCRIPTS->setJavaScriptLibrary('jquery');
-        $_SCRIPTS->setJavaScriptFile('ckeditor', '/editors/ckeditor/ckeditor.js');
-        $ckeditor = '        var geeklogEditorName = "ckeditor";
-        var geeklogAllowedHtml = [];
-        jQuery(function() {
-            CKEDITOR.replace( \'description\', {
-             customConfig: \'' .  $_CONF['site_url'] . '/editors/ckeditor/config.js\',
-             toolbar: \'toolbar0\',
-             height:500
-            });
-        });';
-        $_SCRIPTS->setJavaScript($ckeditor , true);
-	} else {
-	    $template->set_var('adveditor','');
-	}
+    $advancedEditorEnabled = !empty($_CONF['advanced_editor'])
+        && (!isset($_USER['advanced_editor']) || !empty($_USER['advanced_editor']));
+
+    if ($advancedEditorEnabled) {
+        if (function_exists('COM_setupAdvancedEditor')) {
+            COM_setupAdvancedEditor(
+                '/paypal/js/product-editor.js',
+                'paypal.admin'
+            );
+        } else {
+            // Geeklog 2.1.x fallback for installations without the editor API.
+            $_SCRIPTS->setJavaScriptLibrary('jquery');
+            $_SCRIPTS->setJavaScriptFile(
+                'paypal_ckeditor',
+                '/editors/ckeditor/ckeditor.js'
+            );
+            $ckeditor = 'jQuery(function() {'
+                . 'if (typeof CKEDITOR !== "undefined" && '
+                . '!CKEDITOR.instances.description) {'
+                . 'CKEDITOR.replace("description");'
+                . '}'
+                . '});';
+            $_SCRIPTS->setJavaScript($ckeditor, true);
+        }
+    } else {
+        $template->set_var('adveditor', '');
+    }
     
     ($product['product_type'] == '') ? $prod_type_ini = 2 : $prod_type_ini = $product['product_type'];
     
@@ -166,56 +179,43 @@ function PAYPAL_getProductForm($product = array(), $type = 'product') {
 		
     });' . LB;
 
-	$js .= "jQuery(document).ready(function() {
-		jQuery('#load').hide();
-		});
+    $csrfToken = SEC_createToken();
+    $csrfName = CSRF_TOKEN;
 
-		jQuery(function() {
-			jQuery(\".delete\").click(function() {
-				jQuery('#load').show();
-				var id = jQuery(this).attr(\"id\");
-				var pid = jQuery(this).attr(\"pid\");
-				var aid = jQuery(this).attr(\"aid\");
-				var action = jQuery(this).attr(\"class\");
-				var string = 'id='+ id + '&action=' + action + '&pid=' + pid;
-					
-				jQuery.ajax({
-					type: \"POST\",
-					url: \"ajax.php\",
-					data: string,
-					cache: false,
-					async:false,
-					success: function(result){
-						jQuery(\"#attributes_actions\").replaceWith(result);
-					}   
-				});
-				jQuery('#load').hide();
-				return false;
-			});
-			jQuery(\".add\").click(function() {
-				jQuery('#load').show();
-				var id = jQuery(this).attr(\"id\");
-				var pid = jQuery(this).attr(\"pid\");
-				var aid = jQuery(this).attr(\"aid\");
-				var action = jQuery(this).attr(\"class\");
-				var string = 'id='+ id + '&action=' + action + '&pid=' + pid;
-					
-				jQuery.ajax({
-					type: \"POST\",
-					url: \"ajax.php\",
-					data: string,
-					cache: false,
-					async:false,
-					success: function(result){
-						jQuery(\"#attributes_actions\").replaceWith(result);
-					}   
-				});
-				jQuery('#load').hide();
-				return false;
-			});
-		});
-	"  . LB;
-	
+    $js .= "
+    jQuery(function() {
+        jQuery('#load').hide();
+
+        jQuery(document).on('click', '#attributes_actions .delete, #attributes_actions .add', function(event) {
+            event.preventDefault();
+
+            var button = jQuery(this);
+            var id = button.attr('id');
+            var pid = button.attr('pid');
+            var action = button.hasClass('delete') ? 'delete' : 'add';
+            var data = {
+                id: id,
+                pid: pid,
+                action: action
+            };
+            data[" . json_encode($csrfName) . "] = " . json_encode($csrfToken) . ";
+
+            jQuery('#load').show();
+
+            jQuery.ajax({
+                type: 'POST',
+                url: 'ajax.php',
+                data: data,
+                cache: false
+            }).done(function(result) {
+                jQuery('#attributes_actions').replaceWith(result);
+            }).always(function() {
+                jQuery('#load').hide();
+            });
+        });
+    });
+    " . LB;
+
 	//Hide #attributes if product not customisable
 
 	if ($product['customisable'] == '0' || $product['customisable'] == '') {
@@ -399,21 +399,19 @@ function PAYPAL_getProductForm($product = array(), $type = 'product') {
         $template->set_var('customisable_no', ' selected');
     }
 	
-	if(function_exists('PAYPALPRO_displayAttributes') && $product['id'] != '') {
-	    $template->set_var('attributes', PAYPALPRO_displayAttributes($product['id']));
-		$template->set_var('add_attributes', PAYPALPRO_displayAttributesToAdd($product['id']));
-	} else if(function_exists('PAYPALPRO_displayAttributes')) {
-	   $template->set_var('attributes', '');
-	   $template->set_var('add_attributes', $LANG_PAYPAL_PRO['add_attributes']);
-	}  else {
-	   $template->set_var('attributes', '<p>' . $LANG_PAYPAL_PRO['pro_feature'] . '</p>');
-	   $template->set_var('add_attributes', '');
-	}
+    if (!empty($product['id'])) {
+        $template->set_var('attributes', PAYPAL_displayAttributes($product['id']));
+        $template->set_var('add_attributes', PAYPAL_displayAttributesToAdd($product['id']));
+    } else {
+        $template->set_var('attributes', '');
+        $template->set_var('add_attributes', $LANG_PAYPAL_1['add_attributes']);
+    }
 
 	//images
 	$template->set_var('lang_images', $LANG_PAYPAL_1['product_images']);
 	$fileinputs = '';
     $saved_images = '';
+    $icount = 0;
     if ($_PAY_CONF['max_images_per_products'] > 0) {
 	    if ($product['id'] != '') {
             $icount = DB_count($_TABLES['paypal_images'],'pi_pid', $product['id']);
@@ -603,14 +601,15 @@ function PAYPAL_saveImage ($product, $FILES, $pid) {
 	
     $args = &$product;
 
-    // Handle Magic GPC Garbage:
-    while (list($key, $value) = each($args)) {
+    // Normalize submitted values without using each(), removed in PHP 8.
+    foreach ($args as $key => $value) {
         if (!is_array($value)) {
             $args[$key] = COM_stripslashes($value);
         } else {
-            while (list($subkey, $subvalue) = each($value)) {
+            foreach ($value as $subkey => $subvalue) {
                 $value[$subkey] = COM_stripslashes($subvalue);
             }
+            $args[$key] = $value;
         }
     }
 
@@ -669,13 +668,11 @@ function PAYPAL_saveImage ($product, $FILES, $pid) {
 				));
 		
 		if (!$upload->setPath($_PAY_CONF['path_images'])) {
-			$output = COM_siteHeader ('menu', $LANG24[30]);
-			$output .= COM_startBlock ($LANG24[30], '', COM_getBlockTemplate ('_msg_block', 'header'));
+			$output = COM_startBlock ($LANG24[30], '', COM_getBlockTemplate ('_msg_block', 'header'));
 			$output .= $upload->printErrors (false);
 			$output .= COM_endBlock (COM_getBlockTemplate ('_msg_block', 'footer'));
-			$output .= COM_siteFooter ();
-			echo $output;
-			exit;
+			echo PAYPAL_createHTMLDocument($output, $LANG24[30]);
+            exit;
 		}
 
 		// NOTE: if $_CONF['path_to_mogrify'] is set, the call below will
@@ -703,14 +700,12 @@ function PAYPAL_saveImage ($product, $FILES, $pid) {
 		$upload->uploadFiles();
 
 		if ($upload->areErrors()) {
-			$retval = COM_siteHeader('menu', $LANG24[30]);
-			$retval .= COM_startBlock ($LANG24[30], '',
+			$retval = COM_startBlock ($LANG24[30], '',
 						COM_getBlockTemplate ('_msg_block', 'header'));
 			$retval .= $upload->printErrors(false);
 			$retval .= COM_endBlock(COM_getBlockTemplate ('_msg_block', 'footer'));
-			$retval .= COM_siteFooter();
-			echo $retval;
-			exit;
+			echo PAYPAL_createHTMLDocument($retval, $LANG24[30]);
+            exit;
 		}
 
 		reset($filenames);
@@ -749,8 +744,17 @@ function PAYPAL_deleteImage ($image)
  */
 switch ($_REQUEST['op']) {
     case 'delete':
-	    DB_delete($_TABLES['paypal_products'], 'id', $_REQUEST['id']);
+        if (!SEC_checkToken()) {
+            COM_accessLog('PayPal: invalid CSRF token on product deletion.');
+            echo COM_refresh($_CONF['site_admin_url'] . '/plugins/paypal/index.php');
+            exit;
+        }
+        $deletedProductId = isset($_REQUEST['id']) ? (int) $_REQUEST['id'] : 0;
+	    DB_delete($_TABLES['paypal_products'], 'id', $deletedProductId);
 		if (DB_affectedRows('') == 1) {
+            if (function_exists('PLG_itemDeleted')) {
+                PLG_itemDeleted((string) $deletedProductId, 'paypal');
+            }
 			$msg = $LANG_PAYPAL_1['deletion_succes'];
 		} else {
 			$msg = $LANG_PAYPAL_1['deletion_fail'];
@@ -761,6 +765,11 @@ switch ($_REQUEST['op']) {
         break;
 
     case 'save':
+        if (!SEC_checkToken()) {
+            COM_accessLog('PayPal: invalid CSRF token on product save.');
+            echo COM_refresh($_CONF['site_admin_url'] . '/plugins/paypal/index.php');
+            exit;
+        }
         
 		// price can only contain numbers and a decimal
         $price = str_replace(",","",$_REQUEST['price']);
@@ -791,61 +800,108 @@ switch ($_REQUEST['op']) {
             break;
         }
 
-        // prepare strings for insertion
-		$create_mode = 0;
-        $_REQUEST['name'] = rtrim(addslashes($_REQUEST['name']));
-        $_REQUEST['category'] = addslashes($_REQUEST['category']);
-        $_REQUEST['short_description'] = addslashes($_REQUEST['short_description']);
-        $_REQUEST['description'] = addslashes($_REQUEST['description']);
-		if ( $_REQUEST['item_id'] == '' ) $_REQUEST['item_id'] = $_REQUEST['id'];
-		if ( $_REQUEST['item_id'] == '' ) $create_mode = 1;
+        // Normalize and escape values before persistence.
+        $create_mode = 0;
+        $name = DB_escapeString(rtrim($_REQUEST['name']));
+        $categoryId = (int) $_REQUEST['category'];
+        $shortDescription = DB_escapeString($_REQUEST['short_description']);
+        $description = DB_escapeString($_REQUEST['description']);
 
-	    // Convert array values to numeric permission values
-        if (is_array($_REQUEST['perm_owner']) OR is_array($_REQUEST['perm_group']) OR is_array($_REQUEST['perm_members']) OR is_array($_REQUEST['perm_anon'])) {
-            list($_REQUEST['perm_owner'],$_REQUEST['perm_group'],$_REQUEST['perm_members'],$_REQUEST['perm_anon']) = SEC_getPermissionValues($_REQUEST['perm_owner'],$_REQUEST['perm_group'],$_REQUEST['perm_members'],$_REQUEST['perm_anon']);
-       }
-
-        // 0 indicates no expiraton and must be stored as NULL in the DB
-        if ( $_REQUEST['expiration'] == 0 ) {
-            $_REQUEST['expiration'] = 'NULL';
+        if ($_REQUEST['item_id'] == '') {
+            $_REQUEST['item_id'] = $_REQUEST['id'];
         }
-		
-		//Subscription / recurrent
-		($_REQUEST['type']=='subscription') ? $duration = $_REQUEST['duration'] : $duration = $_REQUEST['duration_recurrent'];
-		($_REQUEST['type']=='subscription') ? $duration_type = $_REQUEST['duration_type'] : $duration_type = $_REQUEST['duration_type_recurrent'];
-		($_REQUEST['type']=='subscription') ? $add_to_group = $_REQUEST['add_to_group'] : $add_to_group = $_REQUEST['add_to_group_recurrent'];
-		
-        $sql = "name = '{$_REQUEST['name']}', "
-        	 . "cat_id = '{$_REQUEST['category']}', "
-             . "short_description = '{$_REQUEST['short_description']}', "
-             . "description = '{$_REQUEST['description']}', "
-             . "price = '{$price}', "
-			 . "price_ref = '{$price_ref}', "
-			 . "discount_a = '{$discount_a}', "
-			 . "discount_p = '{$discount_p}', "
-			 . "customisable = {$_REQUEST['customisable']}, "
-             . "product_type = {$_REQUEST['product_type']}, "
-			 . "weight = {$weight}, "
-	         . "shipping_type = '{$_REQUEST['shipping_type']}', "
-			 . "logged = {$_REQUEST['logged']}, "
-			 . "hidden = {$_REQUEST['hidden']}, "
-			 . "active = {$_REQUEST['active']}, "
-             . "file = '{$_REQUEST['file']}', "
-             . "expiration = {$_REQUEST['expiration']}, "
-			 . "type = '{$_REQUEST['type']}', "
-			 . "item_id = '{$_REQUEST['item_id']}', "
-			 . "show_in_blocks = {$_REQUEST['show_in_blocks']}, "
-			 . "duration = {$duration}, "
-			 . "duration_type = '{$duration_type}', "
-			 . "billingamt = '{$billingamt}', "
-			 . "add_to_group = '{$add_to_group}', "
-			 . "owner_id = '{$_REQUEST['owner_id']}', "
-			 . "group_id = '{$_REQUEST['group_id']}', "
-			 . "perm_owner = '{$_REQUEST['perm_owner']}', "
-			 . "perm_group = '{$_REQUEST['perm_group']}', "
-			 . "perm_members = '{$_REQUEST['perm_members']}', "
-			 . "perm_anon = '{$_REQUEST['perm_anon']}'
-			 ";
+        if ($_REQUEST['item_id'] == '') {
+            $create_mode = 1;
+        }
+
+        $itemId = DB_escapeString($_REQUEST['item_id']);
+        $file = DB_escapeString(basename((string) $_REQUEST['file']));
+        $type = DB_escapeString($_REQUEST['type']);
+
+        // Convert array values to numeric permission values.
+        if (is_array($_REQUEST['perm_owner'])
+            || is_array($_REQUEST['perm_group'])
+            || is_array($_REQUEST['perm_members'])
+            || is_array($_REQUEST['perm_anon'])) {
+            list(
+                $_REQUEST['perm_owner'],
+                $_REQUEST['perm_group'],
+                $_REQUEST['perm_members'],
+                $_REQUEST['perm_anon']
+            ) = SEC_getPermissionValues(
+                $_REQUEST['perm_owner'],
+                $_REQUEST['perm_group'],
+                $_REQUEST['perm_members'],
+                $_REQUEST['perm_anon']
+            );
+        }
+
+        $expirationSql = ((int) $_REQUEST['expiration'] === 0)
+            ? 'NULL'
+            : (string) (int) $_REQUEST['expiration'];
+
+        if ($_REQUEST['type'] === 'subscription') {
+            $duration = (int) $_REQUEST['duration'];
+            $duration_type = DB_escapeString($_REQUEST['duration_type']);
+            $add_to_group = (int) $_REQUEST['add_to_group'];
+        } else {
+            $duration = (int) $_REQUEST['duration_recurrent'];
+            $duration_type = DB_escapeString($_REQUEST['duration_type_recurrent']);
+            $add_to_group = (int) $_REQUEST['add_to_group_recurrent'];
+        }
+
+        $customisable = (int) $_REQUEST['customisable'];
+        $productType = (int) $_REQUEST['product_type'];
+        $shippingType = (int) $_REQUEST['shipping_type'];
+        $logged = (int) $_REQUEST['logged'];
+        $hidden = (int) $_REQUEST['hidden'];
+        $active = (int) $_REQUEST['active'];
+        $showInBlocks = (int) $_REQUEST['show_in_blocks'];
+        $ownerId = (int) $_REQUEST['owner_id'];
+        $groupId = (int) $_REQUEST['group_id'];
+        $permOwner = (int) $_REQUEST['perm_owner'];
+        $permGroup = (int) $_REQUEST['perm_group'];
+        $permMembers = (int) $_REQUEST['perm_members'];
+        $permAnon = (int) $_REQUEST['perm_anon'];
+
+        $priceSql = number_format((float) $price, 2, '.', '');
+        $priceRefSql = $price_ref === '' ? '0.00' : number_format((float) $price_ref, 2, '.', '');
+        $discountASql = $discount_a === '' ? '0.00' : number_format((float) $discount_a, 2, '.', '');
+        $discountPSql = $discount_p === '' ? '0' : (string) (int) $discount_p;
+        $weightSql = number_format((float) $weight, 3, '.', '');
+        $billingAmountSql = $billingamt === '' ? '0.00' : number_format((float) $billingamt, 2, '.', '');
+
+        $sql = "name = '{$name}', "
+             . "cat_id = {$categoryId}, "
+             . "short_description = '{$shortDescription}', "
+             . "description = '{$description}', "
+             . "price = '{$priceSql}', "
+             . "price_ref = '{$priceRefSql}', "
+             . "discount_a = '{$discountASql}', "
+             . "discount_p = {$discountPSql}, "
+             . "customisable = {$customisable}, "
+             . "product_type = {$productType}, "
+             . "weight = '{$weightSql}', "
+             . "shipping_type = {$shippingType}, "
+             . "logged = {$logged}, "
+             . "hidden = {$hidden}, "
+             . "active = {$active}, "
+             . "file = '{$file}', "
+             . "expiration = {$expirationSql}, "
+             . "type = '{$type}', "
+             . "item_id = '{$itemId}', "
+             . "show_in_blocks = {$showInBlocks}, "
+             . "duration = {$duration}, "
+             . "duration_type = '{$duration_type}', "
+             . "billingamt = '{$billingAmountSql}', "
+             . "add_to_group = {$add_to_group}, "
+             . "owner_id = {$ownerId}, "
+             . "group_id = {$groupId}, "
+             . "perm_owner = {$permOwner}, "
+             . "perm_group = {$permGroup}, "
+             . "perm_members = {$permMembers}, "
+             . "perm_anon = {$permAnon}";
+
         if (!empty($_REQUEST['id'])) {
 		    //Update mode
             $sql = "UPDATE {$_TABLES['paypal_products']} SET $sql "
@@ -857,7 +913,8 @@ switch ($_REQUEST['op']) {
             $sql = "INSERT INTO {$_TABLES['paypal_products']} SET $sql ";
         }
         DB_query($sql);
-        if (DB_error()) {
+        $paypalSaveSucceeded = !DB_error();
+        if (!$paypalSaveSucceeded) {
             $msg = $LANG_PAYPAL_1['save_fail'];
         } else {
             $msg = $LANG_PAYPAL_1['save_success'];
@@ -874,6 +931,16 @@ switch ($_REQUEST['op']) {
 		    $last_pid = $_REQUEST['id'];
 		}
 		PAYPAL_saveImage ($_REQUEST, $_FILES, $last_pid);
+
+        if ($paypalSaveSucceeded) {
+            if ((int) $_REQUEST['active'] === 1 && (int) $_REQUEST['hidden'] === 0) {
+                if (function_exists('PLG_itemSaved')) {
+                    PLG_itemSaved((string) $last_pid, 'paypal');
+                }
+            } elseif (function_exists('PLG_itemDeleted')) {
+                PLG_itemDeleted((string) $last_pid, 'paypal');
+            }
+        }
 		
         // save complete, return to product list
         echo COM_refresh($_CONF['site_url'] . '/admin/plugins/paypal/index.php?msg=' . urlencode($msg));
@@ -903,9 +970,7 @@ switch ($_REQUEST['op']) {
         break;
 }
 
-$display = COM_siteHeader('none') . paypal_admin_menu() . $display;
-$display .= COM_siteFooter();
-
-COM_output($display);
+$display = paypal_admin_menu() . $display;
+COM_output(PAYPAL_createHTMLDocument($display));
 
 ?>

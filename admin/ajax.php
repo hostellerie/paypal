@@ -1,247 +1,182 @@
 <?php
-// +--------------------------------------------------------------------------+
-// | Maps Plugin 1.1 - geeklog CMS                                            |
-// +--------------------------------------------------------------------------+
-// | ajax.php                                                                 |
-// +--------------------------------------------------------------------------+
-// | Copyright (C) 2011 by the following authors:                             |
-// |                                                                          |
-// | Authors: ::Ben - cordiste AT free DOT fr                                 |
-// +--------------------------------------------------------------------------+
-// |                                                                          |
-// | This program is free software; you can redistribute it and/or            |
-// | modify it under the terms of the GNU General Public License              |
-// | as published by the Free Software Foundation; either version 2           |
-// | of the License, or (at your option) any later version.                   |
-// |                                                                          |
-// | This program is distributed in the hope that it will be useful,          |
-// | but WITHOUT ANY WARRANTY; without even the implied warranty of           |
-// | MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the            |
-// | GNU General Public License for more details.                             |
-// |                                                                          |
-// | You should have received a copy of the GNU General Public License        |
-// | along with this program; if not, write to the Free Software Foundation,  |
-// | Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.          |
-// |                                                                          |
-// +--------------------------------------------------------------------------+
 
 require_once '../../../lib-common.php';
 
 if (!SEC_hasRights('paypal.admin')) {
+    http_response_code(403);
     exit;
 }
 
-// Incoming variable filter
-$vars = array('action' => 'alpha',
-              'id' => 'number',
-			  'pid' => 'number',
-			  'ipn' => 'alpha',
-			  'content' => 'html',
-			  //'content' => 'text',
-			  );
-			  
-paypal_filterVars($vars, $_POST);
-
-function to_utf8($in)
-{
-        if (is_array($in)) {
-            foreach ($in as $key => $value) {
-                $out[to_utf8($key)] = to_utf8($value);
-            }
-        } elseif(is_string($in)) {
-            if(mb_detect_encoding($in) != "UTF-8")
-                return utf8_encode($in);
-            else
-                return $in;
-        } else {
-            return $in;
-        }
-        return $out;
-} 
-
-switch ($_POST['action']) {
-	case 'delete':
-		DB_delete($_TABLES['paypal_product_attribute'],'pa_id',$_POST['id']);
-		echo '<div id="attributes_actions"><div id="attributes_list">' . PAYPALPRO_displayAttributes($_POST['pid']) . '</div>';
-		echo "<script type=\"text/javascript\">jQuery(document).ready(function() {
-		jQuery('#load').hide();
-		});
-
-		jQuery(function() {
-			jQuery(\".delete\").click(function() {
-				jQuery('#load').show();
-				var id = jQuery(this).attr(\"id\");
-				var pid = jQuery(this).attr(\"pid\");
-				var aid = jQuery(this).attr(\"aid\");
-				var action = jQuery(this).attr(\"class\");
-				var string = 'id='+ id + '&action=' + action + '&pid=' + pid;
-					
-				jQuery.ajax({
-					type: \"POST\",
-					url: \"ajax.php\",
-					data: string,
-					cache: false,
-					async:false,
-					success: function(result){
-						jQuery(\"#attributes_actions\").replaceWith(result);
-					}   
-				});
-				jQuery('#load').hide();
-				return false;
-			});
-			jQuery(\".add\").click(function() {
-				jQuery('#load').show();
-				var id = jQuery(this).attr(\"id\");
-				var pid = jQuery(this).attr(\"pid\");
-				var aid = jQuery(this).attr(\"aid\");
-				var action = jQuery(this).attr(\"class\");
-				var string = 'id='+ id + '&action=' + action + '&pid=' + pid;
-					
-				jQuery.ajax({
-					type: \"POST\",
-					url: \"ajax.php\",
-					data: string,
-					cache: false,
-					async:false,
-					success: function(result){
-						jQuery(\"#attributes_actions\").replaceWith(result);
-					}   
-				});
-				jQuery('#load').hide();
-				return false;
-			});
-		});
-	</script>";
-		echo '<div id="attributes_list">' . PAYPALPRO_displayAttributesToAdd($_POST['pid']) . '</div></div>';
-		break;
-		
-	case 'add' :
-	    $sql = "pa_pid = '{$_POST['pid']}', "
-        	 . "pa_aid = '{$_POST['id']}'
-			 ";
-	    $sql = "INSERT INTO {$_TABLES['paypal_product_attribute']} SET $sql ";
-	    DB_query ($sql, $ignore_errors = 0);
-		echo '<div id="attributes_actions"><div id="attributes_list">' . PAYPALPRO_displayAttributes($_POST['pid']) . '</div>';
-		echo "<script type=\"text/javascript\">jQuery(document).ready(function() {
-		jQuery('#load').hide();
-		});
-
-		jQuery(function() {
-			jQuery(\".delete\").click(function() {
-				jQuery('#load').show();
-				var id = jQuery(this).attr(\"id\");
-				var pid = jQuery(this).attr(\"pid\");
-				var aid = jQuery(this).attr(\"aid\");
-				var action = jQuery(this).attr(\"class\");
-				var string = 'id='+ id + '&action=' + action + '&pid=' + pid;
-					
-				jQuery.ajax({
-					type: \"POST\",
-					url: \"ajax.php\",
-					data: string,
-					cache: false,
-					async:false,
-					success: function(result){
-						jQuery(\"#attributes_actions\").replaceWith(result);
-					}   
-				});
-				jQuery('#load').hide();
-				return false;
-			});
-			jQuery(\".add\").click(function() {
-				jQuery('#load').show();
-				var id = jQuery(this).attr(\"id\");
-				var pid = jQuery(this).attr(\"pid\");
-				var aid = jQuery(this).attr(\"aid\");
-				var action = jQuery(this).attr(\"class\");
-				var string = 'id='+ id + '&action=' + action + '&pid=' + pid;
-					
-				jQuery.ajax({
-					type: \"POST\",
-					url: \"ajax.php\",
-					data: string,
-					cache: false,
-					async:false,
-					success: function(result){
-						jQuery(\"#attributes_actions\").replaceWith(result);
-					}   
-				});
-				jQuery('#load').hide();
-				return false;
-			});
-		});
-	</script>";
-		echo '<div id="attributes_list">' . PAYPALPRO_displayAttributesToAdd($_POST['pid']) . '</div></div>';
-	    break;
-		
-	case 'paypal_handle_purchase' :
-	    
-		//Get and check IPN values
-		$txn_id = $_POST['ipn'];
-		$sql = "SELECT * FROM {$_TABLES['paypal_ipnlog']} WHERE txn_id = '$txn_id'";
-        $res = DB_query($sql);
-        $A = DB_fetchArray($res);
-		
-		// Allow all serialized data to be available to the template
-		$ipn ='';
-		if ($A['ipn_data'] != '') {
-			$out = preg_replace('!s:(\d+):"(.*?)";!se', "'s:'.strlen('$2').':\"$2\";'", $A['ipn_data'] ); 
-			$ipn = unserialize($out);
-		}
-		
-		// If verified = false
-		if ( isset($A['verified']) && $A['verified'] != 1 ) {
-		
-			// Handle purchase
-			$i = 1;
-			for ( ; ; ) {
-                if ($ipn['item_number'.$i] == '') {
-					break;
-				}
-			    $products[$i] = $ipn['item_number'.$i];
-				$quantity[$i] = $ipn['quantity'.$i];
-				$names[$i] = $ipn['item_name'.$i];
-				$prices[$i] = $ipn['mc_gross_'.$i];
-				$i++;
-			}
-			
-			$timestamp = strtotime($ipn['payment_date']);
-			//Testing for check
-			//$timestamp = strtotime($ipn['order_date']);
-            $mysql_date = date("Y-m-d H:i:s",$timestamp);
-			 
-			PAYPAL_handlePurchase( $products, $quantity, $ipn, $names, $prices, 0, 'complete', $ipn['custom'], $ipn['txn_id'], $mysql_date );
-			
-			// Set verified to true
-			DB_query("UPDATE {$_TABLES['paypal_ipnlog']} SET verified = 1 WHERE txn_id = '$txn_id'");
-			
-			if (DEBUG) COM_errorLog("PAYPAL: handle purchase for old IPN $txn_id done!");
-        }
-		
-		echo $LANG_PAYPAL_1['done'];
-		break;
-		
-	case 'paypal_new_ipn' :
-	    
-		$content = $_POST['content'];
-		$raw_ipn = explode('&', $content);
-		
-		foreach ($raw_ipn as $keyval) {
-				$keyval = explode ('=', $keyval);
-				if (count($keyval) == 2) {
-					//if (DEBUG) COM_errorLog('PAYPAL: IPN pair: ' . $keyval[0] . ' | ' . $keyval[1]);
-					$new_ipn[$keyval[0]] =  addslashes($keyval[1]); 
-				}
-		}
-				
-		$ipn = serialize($new_ipn);
-		
-		$sql = "UPDATE {$_TABLES['paypal_ipnlog']} SET ipn_data = '" .  $ipn . "' WHERE txn_id = '{$_POST['ipn']}'";
-		DB_query($sql,1);
-		if (DEBUG) COM_errorLog('PAYPAL: IPN updated! SQL: ' . $sql);
-		
-		echo '<p>' . $LANG_PAYPAL_1['ipn_replaced'] . '</p>';
-		break;
+if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !SEC_checkToken()) {
+    http_response_code(403);
+    echo 'Invalid request token';
+    exit;
 }
 
-?>
+$vars = array(
+    'action' => 'alpha',
+    'id' => 'number',
+    'pid' => 'number',
+    'ipn' => 'text',
+    'content' => 'text',
+);
+paypal_filterVars($vars, $_POST);
+
+$action = isset($_POST['action']) ? $_POST['action'] : '';
+$id = isset($_POST['id']) ? (int) $_POST['id'] : 0;
+$pid = isset($_POST['pid']) ? (int) $_POST['pid'] : 0;
+
+function PAYPAL_ajaxAttributeLists($pid)
+{
+    return '<div id="attributes_actions">'
+        . '<div id="attributes_list">' . PAYPAL_displayAttributes($pid) . '</div>'
+        . '<div id="attributes_available">' . PAYPAL_displayAttributesToAdd($pid) . '</div>'
+        . '</div>';
+}
+
+switch ($action) {
+    case 'delete':
+        if ($id <= 0 || $pid <= 0) {
+            http_response_code(400);
+            exit;
+        }
+
+        DB_query(
+            "DELETE FROM {$_TABLES['paypal_product_attribute']} "
+            . "WHERE pa_id = {$id} AND pa_pid = {$pid}"
+        );
+
+        echo PAYPAL_ajaxAttributeLists($pid);
+        break;
+
+    case 'add':
+        if ($id <= 0 || $pid <= 0) {
+            http_response_code(400);
+            exit;
+        }
+
+        $exists = DB_getItem(
+            $_TABLES['paypal_product_attribute'],
+            'pa_id',
+            "pa_pid = {$pid} AND pa_aid = {$id}"
+        );
+
+        if (empty($exists)) {
+            DB_query(
+                "INSERT INTO {$_TABLES['paypal_product_attribute']} "
+                . "SET pa_pid = {$pid}, pa_aid = {$id}"
+            );
+        }
+
+        echo PAYPAL_ajaxAttributeLists($pid);
+        break;
+
+    case 'paypal_handle_purchase':
+        $txnId = isset($_POST['ipn']) ? trim($_POST['ipn']) : '';
+        if ($txnId === '') {
+            http_response_code(400);
+            exit;
+        }
+
+        $safeTxnId = DB_escapeString($txnId);
+        $res = DB_query(
+            "SELECT * FROM {$_TABLES['paypal_ipnlog']} "
+            . "WHERE txn_id = '{$safeTxnId}'"
+        );
+        $A = DB_fetchArray($res);
+
+        if (!is_array($A) || empty($A['ipn_data'])) {
+            http_response_code(404);
+            exit;
+        }
+
+        $ipn = @unserialize($A['ipn_data']);
+        if (!is_array($ipn)) {
+            http_response_code(400);
+            exit;
+        }
+
+        // Manual recovery is allowed only for an IPN that has not already
+        // been marked verified/processed.
+        if ((int) $A['verified'] !== 1) {
+            $products = array();
+            $quantity = array();
+            $names = array();
+            $prices = array();
+
+            for ($i = 1; ; ++$i) {
+                $numberKey = 'item_number' . $i;
+                if (empty($ipn[$numberKey])) {
+                    break;
+                }
+
+                $products[$i] = $ipn[$numberKey];
+                $quantity[$i] = isset($ipn['quantity' . $i]) ? $ipn['quantity' . $i] : 1;
+                $names[$i] = isset($ipn['item_name' . $i]) ? $ipn['item_name' . $i] : '';
+                $prices[$i] = isset($ipn['mc_gross_' . $i]) ? $ipn['mc_gross_' . $i] : 0;
+            }
+
+            if (!empty($products)) {
+                $timestamp = !empty($ipn['payment_date'])
+                    ? strtotime($ipn['payment_date'])
+                    : time();
+                if ($timestamp === false) {
+                    $timestamp = time();
+                }
+
+                PAYPAL_handlePurchase(
+                    $products,
+                    $quantity,
+                    $ipn,
+                    $names,
+                    $prices,
+                    0,
+                    'complete',
+                    isset($ipn['custom']) ? $ipn['custom'] : 0,
+                    isset($ipn['txn_id']) ? $ipn['txn_id'] : $txnId,
+                    date('Y-m-d H:i:s', $timestamp)
+                );
+
+                DB_query(
+                    "UPDATE {$_TABLES['paypal_ipnlog']} "
+                    . "SET verified = 1 WHERE txn_id = '{$safeTxnId}'"
+                );
+            }
+        }
+
+        echo $LANG_PAYPAL_1['done'];
+        break;
+
+    case 'paypal_new_ipn':
+        $txnId = isset($_POST['ipn']) ? trim($_POST['ipn']) : '';
+        $rawContent = isset($_POST['content']) ? $_POST['content'] : '';
+
+        if ($txnId === '' || $rawContent === '') {
+            http_response_code(400);
+            exit;
+        }
+
+        $newIpn = array();
+        parse_str($rawContent, $newIpn);
+
+        if (!is_array($newIpn)) {
+            http_response_code(400);
+            exit;
+        }
+
+        $safeTxnId = DB_escapeString($txnId);
+        $safePayload = DB_escapeString(serialize($newIpn));
+
+        DB_query(
+            "UPDATE {$_TABLES['paypal_ipnlog']} "
+            . "SET ipn_data = '{$safePayload}', verified = 0 "
+            . "WHERE txn_id = '{$safeTxnId}'"
+        );
+
+        echo '<p>' . $LANG_PAYPAL_1['ipn_replaced'] . '</p>';
+        break;
+
+    default:
+        http_response_code(400);
+        break;
+}

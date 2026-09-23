@@ -1,0 +1,137 @@
+name: Build PayPal installable archive
+
+on:
+  push:
+    branches:
+      - stabilize-paypal-1.7.0
+      - paypal-1.7
+    paths-ignore:
+      - 'dist/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: paypal-dist-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  package:
+    name: Build installable ZIP
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Build Geeklog installable archive
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          VERSION="1.7.0"
+          MIN_GL="2.1.1"
+          ARCHIVE="paypal_${VERSION}_${MIN_GL}.zip"
+
+          rm -rf build
+          mkdir -p build/paypal dist
+
+          rsync -a ./ build/paypal/ \
+            --exclude '.git/' \
+            --exclude '.github/' \
+            --exclude '.gitignore' \
+            --exclude 'build/' \
+            --exclude 'dist/'
+
+          # Geeklog expects the plugin package to contain one top-level
+          # directory named "paypal".
+          test -f build/paypal/autoinstall.php
+          test -f build/paypal/functions.inc
+          test -d build/paypal/admin
+          test -d build/paypal/public_html
+          test -d build/paypal/templates
+          test -d build/paypal/sql
+
+          # Geeklog 2.2.2 validates every archive basename with:
+          #   /^[0-9a-zA-Z_.-]+$/
+          # and also rejects names starting/ending with "." or containing "..".
+          INVALID_NAMES="$(
+            find build/paypal -mindepth 1 -printf '%f\n' \
+              | awk '
+                  /^\./ || /\.$/ || /\.\./ || /[^0-9A-Za-z_.-]/ { print }
+                '
+          )"
+
+          if [ -n "${INVALID_NAMES}" ]; then
+            echo "Error: archive contains filenames rejected by Geeklog 2.2.2:" >&2
+            printf '%s\n' "${INVALID_NAMES}" >&2
+            exit 1
+          fi
+
+          # Prevent publishing an archive containing PHP syntax errors.
+          # Include .inc files because Geeklog plugin bootstrap files use that extension.
+          find build/paypal -type f \
+            \( -name '*.php' -o -name '*.inc' \) -print0 \
+            | xargs -0 -n1 php -l
+
+          rm -f "dist/${ARCHIVE}"
+          (
+            cd build
+            zip -qr "../dist/${ARCHIVE}" paypal
+          )
+
+          unzip -t "dist/${ARCHIVE}" >/dev/null
+
+          FIRST_ENTRY="$(unzip -Z1 "dist/${ARCHIVE}" | head -n 1)"
+          case "${FIRST_ENTRY}" in
+            paypal/*|paypal/) ;;
+            *)
+              echo "Error: archive must have paypal/ as its top-level directory." >&2
+              exit 1
+              ;;
+          esac
+
+          echo "Created dist/${ARCHIVE}"
+          ls -lh "dist/${ARCHIVE}"
+
+      - name: Publish workflow artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: paypal-1.7.0-installable
+          path: dist/paypal_1.7.0_2.1.1.zip
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Update dist archive
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+
+          ARCHIVE="paypal_1.7.0_2.1.1.zip"
+          TMP_ARCHIVE="${RUNNER_TEMP}/${ARCHIVE}"
+
+          cp "dist/${ARCHIVE}" "${TMP_ARCHIVE}"
+
+          # Refresh from the latest branch tip before committing the generated
+          # binary. This keeps one stable archive name while avoiding binary
+          # rebase conflicts when another commit lands during the build.
+          git fetch origin "${GITHUB_REF_NAME}"
+          git reset --hard "origin/${GITHUB_REF_NAME}"
+
+          mkdir -p dist
+          cp "${TMP_ARCHIVE}" "dist/${ARCHIVE}"
+          git add -f "dist/${ARCHIVE}"
+
+          if git diff --cached --quiet; then
+            echo 'Archive is already up to date.'
+            exit 0
+          fi
+
+          git commit -m 'Build PayPal 1.7.0 archive [skip ci]'
+          git push origin HEAD:${GITHUB_REF_NAME}

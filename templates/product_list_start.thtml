@@ -1,7 +1,5 @@
 {# begin {templatelocation} #}
-
-<div name="product_list">
-{title}
-<table class="product_list" cellspacing="5" border="0" width="100%">
-
+<section class="paypal-catalog">
+  <header class="paypal-catalog-header">{title}</header>
+  <div class="paypal-product-grid">
 {# end {templatelocation} #}

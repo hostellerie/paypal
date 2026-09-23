@@ -1,20 +1,26 @@
 {# begin {templatelocation} #}
 
-<!-- cart_item.thtml -->
-        <tr>
-		  <td class="jcart-item-name">
-		    &nbsp;{name}<input type="hidden" name="jcart_item_name[ ]" value="{name}" />
-			<input type="hidden" name="jcart_item_id[ ]" value="{id}" />
-		  </td>
-		  <td class="jcart-unit-price" nowrap>
-		    <span>{price} {currency_symbol}</span>
-		  </td>
-		  <td class="jcart-item-qty">
-		    <input type="text" size="2" id="jcart-item-id-{id}" name="jcart_item_qty[ ]" value="{qty}" />
-		  </td>
-		  <td class="jcart-item-price" nowrap>
-		    <span>{subtotal} {currency_symbol}</span> <a class="jcart-remove" href="?jcart_remove={id}"><img src="{remove_png}" align="top" alt="{remove}" title="{remove}" /></a><input type="hidden" name="jcart_item_price[ ]" value="{price}" />
-		  </td>
-		</tr>
+        <tr class="paypal-cart-row">
+          <td class="jcart-item-name">
+            <span class="paypal-cart-product-name">{name}</span>
+            <input type="hidden" name="jcart_item_name[ ]" value="{name}"{xhtml}>
+            <input type="hidden" name="jcart_item_id[ ]" value="{id}"{xhtml}>
+          </td>
+          <td class="jcart-unit-price">
+            <span>{price} {currency_symbol}</span>
+          </td>
+          <td class="jcart-item-qty">
+            <input type="number" min="0" step="1" inputmode="numeric"
+                   id="jcart-item-id-{id}" name="jcart_item_qty[ ]" value="{qty}"{xhtml}>
+          </td>
+          <td class="jcart-item-price">
+            <span class="paypal-cart-line-total">{subtotal} {currency_symbol}</span>
+            <a class="jcart-remove paypal-cart-remove"
+               href="?jcart_remove={id}"
+               title="{remove}"
+               aria-label="{remove}">×</a>
+            <input type="hidden" name="jcart_item_price[ ]" value="{price}"{xhtml}>
+          </td>
+        </tr>
 
 {# end {templatelocation} #}

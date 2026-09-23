@@ -1,9 +1,7 @@
 {# begin {templatelocation} #}
-
 <div class="button_customise">
- <form style="display: inline" action="{product_page}" method="post">
-  <input type="submit" value="{customise}" border="0" name="submit" />
- </form>
+  <form action="{product_page}" method="post">
+    <button type="submit" name="submit">{customise}</button>
+  </form>
 </div>
-
 {# end {templatelocation} #}

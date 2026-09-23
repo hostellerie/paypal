@@ -53,9 +53,9 @@ function plugin_autoinstall_paypal($pi_name)
     $info = array(
         'pi_name'         => $pi_name,
         'pi_display_name' => $pi_display_name,
-        'pi_version'      => '1.6.2',
-        'pi_gl_version'   => '1.8.0',
-        'pi_homepage'     => 'http://www.geeklog.fr'
+        'pi_version'      => '1.7.0',
+        'pi_gl_version'   => '2.1.1',
+        'pi_homepage'     => 'https://github.com/Geeklog-Plugins/paypal'
     );
 
     $groups = array(
@@ -123,6 +123,8 @@ function plugin_autoinstall_paypal($pi_name)
 * @return   boolean             true: plugin compatible; false: not compatible
 *
 */
+require_once __DIR__ . '/uninstall.php';
+
 function plugin_compatible_with_this_version_paypal($pi_name)
 {
     global $_CONF, $_DB_dbms;
@@ -134,10 +136,18 @@ function plugin_compatible_with_this_version_paypal($pi_name)
         return false;
     }
 
-    // add checks here
+    if (version_compare(VERSION, '2.1.1', '<')) {
+        return false;
+    }
+
+    if (version_compare(PHP_VERSION, '5.6.0', '<')) {
+        return false;
+    }
 
     return true;
 }
+
+require_once __DIR__ . '/storage.php';
 
 function plugin_postinstall_paypal($pi_name)
 {
@@ -147,9 +157,12 @@ function plugin_postinstall_paypal($pi_name)
     $groups['Paypal User']   = 'Users in this group can purchase products';
     $groups['Paypal Viewer'] = 'Users in this group can view products';	
 
-    // Groups assignment mapping (note: group -> group, not user -> group) 
-    $grp_assign['Paypal User']   = array(13); // 13 is the Logged-in Users group
-    $grp_assign['Paypal Viewer'] = array(2);  // 2 is the All Users group
+    // Resolve Geeklog core groups by name instead of relying on installation-specific IDs.
+    $loggedInGroup = (int) DB_getItem($_TABLES['groups'], 'grp_id', "grp_name = 'Logged-in Users'");
+    $allUsersGroup = (int) DB_getItem($_TABLES['groups'], 'grp_id', "grp_name = 'All Users'");
+
+    $grp_assign['Paypal User'] = $loggedInGroup > 0 ? array($loggedInGroup) : array();
+    $grp_assign['Paypal Viewer'] = $allUsersGroup > 0 ? array($allUsersGroup) : array();
 	
      // Assign created paypal groups to other (logical) groups
     foreach ($grp_assign as $group => $grparray) {
@@ -169,15 +182,22 @@ function plugin_postinstall_paypal($pi_name)
         }
     }
 	
-    /* This code is for statistics ONLY */
-    $message =  'Completed paypal plugin install: ' .date('m d Y',time()) . "   AT " . date('H:i', time()) . "\n";
-    $message .= 'Site: ' . $_CONF['site_url'] . ' and Sitename: ' . $_CONF['site_name'] . "\n";
-    $pi_version = DB_getItem($_TABLES['plugins'], 'pi_version', "pi_name = 'paypal'");
-    COM_mail("ben@geeklog.fr","$pi_name Version:$pi_version Install successfull",$message);
-	
-	// Create paypal_downloads.log file
-	$paypalDownload = fopen($_CONF['path_log'] . 'paypal_downloads.log', 'w') or die("can't create file paypal_downloads.log file");
-    fclose($paypalDownload);
+    // Create persistent image/download storage used by the plugin.
+    $storageFailures = PAYPAL_ensureStorageDirectories(true);
+    if (!empty($storageFailures)) {
+        COM_errorLog('PayPal: installation completed but some storage directories could not be prepared.');
+    }
+
+    // Create the plugin download log without making installation fatal.
+    $paypalLog = rtrim($_CONF['path_log'], "/\\") . DIRECTORY_SEPARATOR . 'paypal_downloads.log';
+    if (!file_exists($paypalLog)) {
+        $paypalDownload = @fopen($paypalLog, 'a');
+        if ($paypalDownload === false) {
+            COM_errorLog('PayPal: unable to create download log at ' . $paypalLog);
+        } else {
+            fclose($paypalDownload);
+        }
+    }
 
 	return true;
 }

@@ -37,13 +37,13 @@ if (strpos(strtolower($_SERVER['PHP_SELF']), 'mysql_install.php') !== false) {
 
 $_SQL[] = "CREATE TABLE {$_TABLES['paypal_ipnlog']} (
     id int auto_increment,
-    ip_addr varchar(15) NOT NULL,
+    ip_addr varchar(45) NOT NULL,
     time datetime NOT NULL,
     verified tinyint(1) default '0',
     txn_id varchar(255),
     ipn_data text NOT NULL,
     PRIMARY KEY (id) 
-) ENGINE=MyISAM
+) ENGINE=InnoDB
 ";
 
 $_SQL[] = "CREATE TABLE {$_TABLES['paypal_products']} (
@@ -85,7 +85,7 @@ $_SQL[] = "CREATE TABLE {$_TABLES['paypal_products']} (
     INDEX products_name (name),
     INDEX products_price (price),
     INDEX products_category (cat_id) 
-) ENGINE=MyISAM
+) ENGINE=InnoDB
 ";
 
 //TODO: multiple downloads...
@@ -96,7 +96,7 @@ $_SQL[] = "CREATE TABLE {$_TABLES['paypal_downloads']} (
 	dl_date datetime,
 	user_id int NOT NULL,
     PRIMARY KEY (id)
-) ENGINE=MyISAM
+) ENGINE=InnoDB
 ";
 
 $_SQL[] = "CREATE TABLE {$_TABLES['paypal_purchases']} (
@@ -110,7 +110,7 @@ $_SQL[] = "CREATE TABLE {$_TABLES['paypal_purchases']} (
     status varchar(12),
     expiration datetime,
     PRIMARY KEY (id)
-) ENGINE=MyISAM
+) ENGINE=InnoDB
 ";
 
 $_SQL[] = "CREATE TABLE {$_TABLES['paypal_images']} (
@@ -118,7 +118,7 @@ $_SQL[] = "CREATE TABLE {$_TABLES['paypal_images']} (
     pi_img_num tinyint(2) unsigned NOT NULL,
     pi_filename varchar(128) NOT NULL,
     PRIMARY KEY (pi_pid,pi_img_num)
-) ENGINE=MyISAM
+) ENGINE=InnoDB
 ";
 
 $_SQL[] = "CREATE TABLE {$_TABLES['paypal_subscriptions']} (
@@ -133,7 +133,7 @@ $_SQL[] = "CREATE TABLE {$_TABLES['paypal_subscriptions']} (
     add_to_group int(5) default NULL,
     notification tinyint(1) unsigned NOT NULL default '0',
     PRIMARY KEY  (id)
-) ENGINE=MyISAM
+) ENGINE=InnoDB
 ";
 			
 $_SQL[] = "CREATE TABLE {$_TABLES['paypal_users']} (
@@ -151,7 +151,7 @@ $_SQL[] = "CREATE TABLE {$_TABLES['paypal_users']} (
 	user_fax varchar(20) default NULL,
     status tinyint(1) DEFAULT '0',
     PRIMARY KEY (user_id)
-) ENGINE=MyISAM
+) ENGINE=InnoDB
 ";
 
 $_SQL[] = "CREATE TABLE {$_TABLES['paypal_categories']} (
@@ -168,7 +168,7 @@ $_SQL[] = "CREATE TABLE {$_TABLES['paypal_categories']} (
     perm_members tinyint(1) unsigned NOT NULL default '2',
     perm_anon tinyint(1) unsigned NOT NULL default '2',
     PRIMARY KEY (cat_id)
-) ENGINE=MyISAM
+) ENGINE=InnoDB
 ";	
 	
 $_SQL[] = "CREATE TABLE {$_TABLES['paypal_attributes']} (
@@ -181,7 +181,7 @@ $_SQL[] = "CREATE TABLE {$_TABLES['paypal_attributes']} (
 	at_image varchar(255) default NULL,
 	at_order smallint(5) unsigned NOT NULL default '1',
 	PRIMARY KEY (at_id)
-) ENGINE=MyISAM
+) ENGINE=InnoDB
 ";
 
 $_SQL[] = "CREATE TABLE {$_TABLES['paypal_attribute_type']} (
@@ -189,7 +189,7 @@ $_SQL[] = "CREATE TABLE {$_TABLES['paypal_attribute_type']} (
 	at_tname varchar(255),
 	at_torder smallint(5) unsigned NOT NULL default '1',
 	PRIMARY KEY (at_tid)
-) ENGINE=MyISAM
+) ENGINE=InnoDB
 	";
 	
 $_SQL[] = "CREATE TABLE {$_TABLES['paypal_product_attribute']} (
@@ -197,7 +197,7 @@ $_SQL[] = "CREATE TABLE {$_TABLES['paypal_product_attribute']} (
 	pa_pid int(11),
 	pa_aid int(11),
 	PRIMARY KEY (pa_id)
-) ENGINE=MyISAM
+) ENGINE=InnoDB
 ";
 
 $_SQL[] = "CREATE TABLE {$_TABLES['paypal_stock']} (
@@ -208,7 +208,7 @@ $_SQL[] = "CREATE TABLE {$_TABLES['paypal_stock']} (
 	qmax int(6) DEFAULT NULL,
 	qmin int(6) DEFAULT NULL,
 	PRIMARY KEY (st_id)
-) ENGINE=MyISAM
+) ENGINE=InnoDB
 ";
 
 $_SQL[] = "CREATE TABLE {$_TABLES['paypal_delivery']} (
@@ -217,7 +217,7 @@ $_SQL[] = "CREATE TABLE {$_TABLES['paypal_delivery']} (
 	user_id mediumint(8),
 	provider_id mediumint(8),
 	PRIMARY KEY (did)
-) ENGINE=MyISAM
+) ENGINE=InnoDB
 ";
 
 $_SQL[] = "CREATE TABLE {$_TABLES['paypal_stock_movements']} (
@@ -228,14 +228,14 @@ $_SQL[] = "CREATE TABLE {$_TABLES['paypal_stock_movements']} (
 	stock_id varchar(255) NOT NULL,
 	deli_id mediumint(8) NOT NULL,
 	PRIMARY KEY (mid)
-) ENGINE=MyISAM
+) ENGINE=InnoDB
 ";
 			
 $_SQL[] = "CREATE TABLE {$_TABLES['paypal_providers']} (
 	prov_id mediumint(8) NOT NULL auto_increment,
 	prov_name VARCHAR(80)  NOT NULL,
 	PRIMARY KEY (prov_id)
-) ENGINE=MyISAM
+) ENGINE=InnoDB
 ";
 
 $_SQL[] = "CREATE TABLE {$_TABLES['paypal_shipper_service']} (
@@ -245,7 +245,7 @@ $_SQL[] = "CREATE TABLE {$_TABLES['paypal_shipper_service']} (
     shipper_service_description text,
 	shipper_service_exclude_cat smallint(5) unsigned NOT NULL default '0',
     PRIMARY KEY  (shipper_service_id) 
-) ENGINE=MyISAM
+) ENGINE=InnoDB
 ";
 
 $_SQL[] = "CREATE TABLE {$_TABLES['paypal_shipping_to']} (
@@ -253,7 +253,7 @@ $_SQL[] = "CREATE TABLE {$_TABLES['paypal_shipping_to']} (
     shipping_to_name varchar(255) NOT NULL,
 	shipping_to_order smallint(5) unsigned NOT NULL default '1',
     PRIMARY KEY  (shipping_to_id) 
-) ENGINE=MyISAM
+) ENGINE=InnoDB
 ";
 
 $_SQL[] = "CREATE TABLE {$_TABLES['paypal_shipping_cost']} (
@@ -264,7 +264,7 @@ $_SQL[] = "CREATE TABLE {$_TABLES['paypal_shipping_cost']} (
 	shipping_destination_id int(11) NOT NULL,
 	shipping_amt FLOAT (6,2) NOT NULL DEFAULT '0.00',
     PRIMARY KEY  (shipping_id) 
-) ENGINE=MyISAM
+) ENGINE=InnoDB
 ";
 
 $_SQL[] = "CREATE TABLE {$_TABLES['paypal_recurrent']} (
@@ -276,7 +276,7 @@ $_SQL[] = "CREATE TABLE {$_TABLES['paypal_recurrent']} (
 	product_id mediumint(8) unsigned NOT NULL,
 	group_id mediumint(8) unsigned NOT NULL,
     PRIMARY KEY (rid) 
-) ENGINE=MyISAM
+) ENGINE=InnoDB
 ";
 
 /*	

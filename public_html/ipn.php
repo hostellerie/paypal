@@ -1,61 +1,32 @@
 <?php
-// +--------------------------------------------------------------------------+
-// | PayPal Plugin - geeklog CMS                                             |
-// +--------------------------------------------------------------------------+
-// | ipn.php                                                                  |
-// |                                                                          |
-// | page that accepts IPN transaction information from the paypal servers.   |
-// | A link to this page needs to be associated with your paypal business     |
-// | account.                                                                 |
-// +--------------------------------------------------------------------------+
-// |                                                                          |
-// | Copyright (C) 2005-2006 by the following authors:                        |
-// |                                                                          |
-// | Authors: Vincent Furia     - vinny01 AT users DOT sourceforge DOT net    |
-// +--------------------------------------------------------------------------+
-// |                                                                          |
-// | This program is free software; you can redistribute it and/or            |
-// | modify it under the terms of the GNU General Public License              |
-// | as published by the Free Software Foundation; either version 2           |
-// | of the License, or (at your option) any later version.                   |
-// |                                                                          |
-// | This program is distributed in the hope that it will be useful,          |
-// | but WITHOUT ANY WARRANTY; without even the implied warranty of           |
-// | MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the            |
-// | GNU General Public License for more details.                             |
-// |                                                                          |
-// | You should have received a copy of the GNU General Public License        |
-// | along with this program; if not, write to the Free Software Foundation,  |
-// | Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.          |
-// |                                                                          |
-// +--------------------------------------------------------------------------+
 
-/**
- * page that accepts IPN transaction information from the paypal servers.  A link to
- * this page needs to be associated with your paypal business account.
- *
- * @author Vincent Furia <vinny01 AT users DOT sourceforge DOT net>
- * @copyright Vincent Furia 2005 - 2006
- * @package paypal
- */
+require_once '../lib-common.php';
 
-/**
- * Require geeklog
- */
-require_once('../lib-common.php');
+if (!in_array('paypal', $_PLUGINS)) {
+    http_response_code(404);
+    exit;
+}
 
-/**
- * Get needed paypal classes
- */
+if (!isset($_SERVER['REQUEST_METHOD']) || $_SERVER['REQUEST_METHOD'] !== 'POST') {
+    http_response_code(405);
+    header('Allow: POST');
+    exit;
+}
 
-require_once($_CONF['path'] . 'plugins/paypal/classes/IPN.class.php');
+$contentLength = isset($_SERVER['CONTENT_LENGTH']) ? (int) $_SERVER['CONTENT_LENGTH'] : 0;
+if ($contentLength > 1048576) {
+    http_response_code(413);
+    exit;
+}
 
-// Process IPN request
+require_once $_CONF['path'] . 'plugins/paypal/classes/IPN.class.php';
+
 $ipn = new IPN();
 $ipn->Process($_POST);
 
-
-// Finished (this isn't necessary...but heck...why not?)
-echo "Thanks";
-
-?>
+// PayPal only needs a successful HTTP response after the listener has handled
+// the notification. The authenticity decision is made by server-to-server
+// verification inside BaseIPN::Verify().
+http_response_code(200);
+header('Content-Type: text/plain; charset=UTF-8');
+echo 'OK';

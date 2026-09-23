@@ -1,11 +1,9 @@
 {# begin {templatelocation} #}
 
-<div id="paypal_random_block">
-  <p>
-	{small_pic}
-  <p>
-  <small><a href="{site_url}/product_detail.php?product={item_id}">{item_name}</a>  {price}</small>
-  </p>
- </div>
- 
+<div id="paypal_random_block" class="paypal-random-product">
+  {small_pic}
+  <p><a href="{product_url}">{item_name}</a></p>
+  <p class="paypal-random-product-price">{price}</p>
+</div>
+
 {# end {templatelocation} #}

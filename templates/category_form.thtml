@@ -1,25 +1,27 @@
 {# begin {templatelocation} #}
 
 <form action="{admin_url}/plugins/paypal/index.php?mode=categories" method="POST" enctype="multipart/form-data"  class="uk-form paypal_form">
-	<fieldset style="margin-top: 10px;"><legend><b>{main_settings}</b></legend>
+	
+<input type="hidden" name="{gltoken_name}" value="{gltoken}">
+<fieldset style="margin-top: 10px;"><legend><b>{main_settings}</b></legend>
 	{cat_id}
-	<h2>{category_label}<font color="red"> *</font></h2>
+	<p class="paypal-form-row">{category_label}<span class="paypal-required"> *</span></p>
 	<p><input type="text" name="category" value="{cat_name}" size="40" maxlength="255" {xhtml}></p>
-	<h2>{parent_id}</h2>
+	<p class="paypal-form-row"><label>{parent_id}</label></p>
 	<select name="parent_id">
           <option value="0">{top_cat}</option>
           {parent_cat}
         </select>
 	
-	<h2>{image}</h2>
+	<p class="paypal-form-row">{image}</p>
     <p>{image_message}</p>	
 	<input type="file" dir="ltr" name="file"{xhtml}>
 	{cat_image}
 	
-	<h2>{description_label}</h2>
+	<p class="paypal-form-row">{description_label}</p>
 	<p><textarea name="description" style="width:100%" cols="45" rows="5">{description}</textarea></p>
 	
-	<h2>{enabled}</h2>
+	<p class="paypal-form-row"><label>{enabled}</label></p>
 	<select name="enabled">
      <option value="0"{enabled_no}>{no}</option>
      <option value="1"{enabled_yes}>{yes}</option>
@@ -41,7 +43,7 @@
 		</div>
 	</fieldset>
 	
-    <p><strong><font color="red">*</font><em> {required_field}</em></strong></p>
+    <p><strong><span class="paypal-required"> *</span><em> {required_field}</em></strong></p>
     <select name="op" >
 	<option value="save" selected="selected">{save_button}</option>
     {delete_button}

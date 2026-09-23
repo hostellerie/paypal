@@ -45,16 +45,16 @@ if (! in_array('paypal', $_PLUGINS) || COM_isAnonUser() ) {
 /* Ensure sufficient privs to read this page */
 paypal_access_check('paypal.user');
 
-$vars = array('msg' => 'text',
-              );
+$vars = array(
+    'msg' => 'text',
+    'mode' => 'alpha',
+);
 paypal_filterVars($vars, $_REQUEST);
 
 
 //Main
 
-$display .= PAYPAL_siteHeader();
-
-$display .= paypal_user_menu();
+$display = paypal_user_menu();
 
 
 switch ($_REQUEST['mode']) {
@@ -68,10 +68,8 @@ switch ($_REQUEST['mode']) {
 
         //Display cart
         $display .= '<div id="cart">' . PAYPAL_displayCart() .'</div>';
-		
-        $display .= PAYPAL_siteFooter();
 }
 
-COM_output($display);
+COM_output(PAYPAL_createHTMLDocument($display));
 
 ?>

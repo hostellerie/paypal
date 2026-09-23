@@ -36,7 +36,7 @@ require_once('../../../lib-common.php');
 // Check for required permissions
 paypal_access_check('paypal.admin');
 
-$vars = array('msg', 'text');
+$vars = array('msg' => 'text');
 paypal_filterVars($vars, $_REQUEST);
 
 function PAYPAL_listDownloads()
@@ -73,8 +73,7 @@ function PAYPAL_listDownloads()
     $query_arr = array(
         'table'          => 'paypal_downloads',
         'sql'            => $sql,
-        'query_fields'   => array('id', 'product_id', 'file', 'dl_date', 'user_id'),
-        'default_filter' => COM_getPermSQL ('AND', 0, 3)
+        'query_fields'   => array('id', 'product_id', 'file', 'dl_date', 'user_id')
     );
 
     $retval .= ADMIN_list('paypal', 'plugin_getListField_paypal_downloads',
@@ -123,8 +122,7 @@ function plugin_getListField_paypal_downloads($fieldname, $fieldvalue, $A, $icon
 
 //Main
 
-$display = COM_siteHeader('none');
-$display .= paypal_admin_menu();
+$display = paypal_admin_menu();
 
 $display .= COM_startBlock($LANG_PAYPAL_1['downloads_history']);
 
@@ -137,8 +135,6 @@ if (!empty($_REQUEST['msg'])) {
 $display .= PAYPAL_listDownloads();
 $display .= COM_endBlock();
 
-$display .= COM_siteFooter();
-
-COM_output($display);
+COM_output(PAYPAL_createHTMLDocument($display, $LANG_PAYPAL_1['downloads_history']));
 
 ?>

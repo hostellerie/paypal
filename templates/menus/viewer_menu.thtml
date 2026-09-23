@@ -1,8 +1,9 @@
 {# begin {templatelocation} #}
-
-<div class="paypal_user_menu">
- {product_list_label} | <a href="{site_url}/checkout.php">{view_cart}</a>
- {memberships} 
-</div>
-
+<nav class="paypal-store-nav" aria-label="PayPal store">
+  <div class="paypal-store-nav__links">
+    {product_list_label}
+    <a href="{site_url}/checkout.php">{view_cart}</a>
+    {memberships}
+  </div>
+</nav>
 {# end {templatelocation} #}
